@@ -9,18 +9,20 @@ import org.scalatest.{MustMatchers, WordSpec}
 class RestfulApiSpec extends WordSpec with MustMatchers {
 
   "The root path provides a not-quite-hypertext list of supported resource types" in {
-    val restController = new Controller with Rest
-    restController.resource[Spaceship](GetAll)
-    restController.resource[Vector](GetAll)
-    val app = MockApp(restController)
+    val controllerWithRest = new Controller with Rest {
+      resource[Spaceship](GetAll)
+      resource[Vector](GetAll)
+    }
+    val app = MockApp(controllerWithRest)
 
     validateJsonResponse(app, "/", """["spaceship","vector"]""")
   }
 
   "Registering a resource type as a GetAll allows bulk download" in {
-    val restController = new Controller with Rest
-    restController.resource[Spaceship](GetAll)
-    val app = MockApp(restController)
+    val controllerWithRest = new Controller with Rest {
+      resource[Spaceship](GetAll)
+    }
+    val app = MockApp(controllerWithRest)
 
     validateJsonResponse(app, "/spaceship.json", """[
                                                    |  {"id": "7", "name": "Enterprise", "personnel": 150, "vector": "24"},
@@ -31,9 +33,10 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
   }
 
   "We send back a 404 for Resource types we don't support" in {
-    val restController = new Controller with Rest
-    restController.resource[Spaceship](GetAll)
-    val app = MockApp(restController)
+    val controllerWithRest = new Controller with Rest {
+      resource[Spaceship](GetAll)
+    }
+    val app = MockApp(controllerWithRest)
 
     val response = app.get(s"/petNames.json")
 
@@ -42,6 +45,11 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
   }
 
   // UTF-8
+  /*
+  val utf8Json = s"${MediaType.Json}; charset=UTF-8"
+  val serialiser = DefaultJacksonJsonSerializer
+   */
+  
   // Caching
   // Persistence
   // Setting URI path root
