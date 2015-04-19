@@ -1,0 +1,6 @@
+[
+  {"id": "7", "name": "Enterprise", "personnel": 150, "vector": "24"},
+  {"id": "5", "name": "Laziness", "personnel": 20, "vector": "2"},
+  {"id": "3", "name": "Sloth", "personnel": 1, "vector": "4"},
+  {"id": "1", "name": "Gr€€d", "personnel": 5, "vector": "1"}
+]
