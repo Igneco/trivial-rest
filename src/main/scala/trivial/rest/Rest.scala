@@ -1,10 +1,10 @@
 package trivial.rest
 
 import com.twitter.finagle.http.MediaType
-import com.twitter.finatra.Controller
+import com.twitter.finatra.{FileResolver, Controller}
 import com.twitter.finatra.serialization.DefaultJacksonJsonSerializer
 import Json._
-import trivial.rest.persistence.{Persister, FileSystem}
+import trivial.rest.persistence.{Persister, JsonOnFileSystem}
 
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
@@ -21,14 +21,15 @@ trait Rest { controller: Controller =>
   // TODO - CAS - 20/04/15 - Allow client code to specify/override these
   val fileSystemRoot: String = "src/test/resources"
   val uriRoot : String = "/"
-  val persister: Persister = new FileSystem(fileSystemRoot)
+  val persister: Persister = new JsonOnFileSystem(fileSystemRoot)
   val serialiser = DefaultJacksonJsonSerializer
 
   def resource[T: ClassTag](supportedMethods: HttpMethod*) = {
     def resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
 
     resources.append(resourceName)
-    supportedMethods.foreach{
+
+    supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
       case x => throw new UnsupportedOperationException(s"I haven't built support for $x yet")
     }
@@ -37,12 +38,9 @@ trait Rest { controller: Controller =>
   // TODO - CAS - 17/04/15 - Trap all get(s"/$resourceName.json") and give a custom error message for 404
   def addGetAll(resourceName: String): Unit = {
     controller.get(s"/$resourceName.json") { request =>
-      try {
-        // TODO - CAS - 20/04/15 - if (file exists)
-        render.body(persister.loadAll(resourceName)).contentType(utf8Json).toFuture
-      } catch {
-        // else ...
-        case iae: IllegalArgumentException => render.status(500).plain(s"Could not find $resourceName.json").toFuture
+      persister.loadAll(resourceName) match {
+        case Right(bytes) => render.body(bytes).contentType(utf8Json).toFuture
+        case Left(whyNot) => render.status(500).plain(whyNot).toFuture
       }
     }
   }
