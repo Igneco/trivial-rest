@@ -5,13 +5,15 @@ import com.twitter.finatra.Controller
 import com.twitter.finatra.test.MockApp
 import org.jboss.netty.handler.codec.http.HttpHeaders
 import org.scalatest.{MustMatchers, WordSpec}
+import trivial.rest.persistence.JsonOnFileSystem
 
 class RestfulApiSpec extends WordSpec with MustMatchers {
 
   "The root path provides a not-quite-hypertext list of supported resource types" in {
-    val controllerWithRest = new Controller with Rest {
-      resource[Spaceship](GetAll)
-      resource[Vector](GetAll)
+    val controllerWithRest = new Controller {
+      new Rest(this, "/", new JsonOnFileSystem("./src/test/resources"))
+        .resource[Spaceship](GetAll)
+        .resource[Vector](GetAll)
     }
     val app = MockApp(controllerWithRest)
 
@@ -19,8 +21,9 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
   }
 
   "Registering a resource type as a GetAll allows bulk download" in {
-    val controllerWithRest = new Controller with Rest {
-      resource[Spaceship](GetAll)
+    val controllerWithRest = new Controller {
+      new Rest(this, "/", new JsonOnFileSystem("./src/test/resources"))
+        .resource[Spaceship](GetAll)
     }
     val app = MockApp(controllerWithRest)
 
@@ -33,8 +36,9 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
   }
 
   "We send back a 404 for Resource types we don't support" in {
-    val controllerWithRest = new Controller with Rest {
-      resource[Spaceship](GetAll)
+    val controllerWithRest = new Controller {
+      new Rest(this, "/", new JsonOnFileSystem("./src/test/resources"))
+        .resource[Spaceship](GetAll)
     }
     val app = MockApp(controllerWithRest)
 

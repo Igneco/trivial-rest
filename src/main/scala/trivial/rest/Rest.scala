@@ -15,13 +15,11 @@ import scala.reflect.ClassTag
  * (2) Register it as a Resource, specifying the allowed HTTP methods
  * (3) You get a truly RESTful API, your allowed HTTP methods, and persistence, and caching, for free.
  */
-trait Rest { controller: Controller =>
+class Rest(controller: Controller, uriRoot: String, persister: Persister) {
   private val resources = ListBuffer[String]()
   
-  // TODO - CAS - 20/04/15 - Allow client code to specify/override these
-  val fileSystemRoot: String = "src/test/resources"
-  val uriRoot : String = "/"
-  val persister: Persister = new JsonOnFileSystem(fileSystemRoot)
+  import controller._
+  
   val serialiser = DefaultJacksonJsonSerializer
 
   def resource[T: ClassTag](supportedMethods: HttpMethod*) = {
@@ -33,6 +31,8 @@ trait Rest { controller: Controller =>
       case GetAll => addGetAll(resourceName)
       case x => throw new UnsupportedOperationException(s"I haven't built support for $x yet")
     }
+    
+    this
   }
 
   // TODO - CAS - 17/04/15 - Trap all get(s"/$resourceName.json") and give a custom error message for 404
