@@ -1,4 +1,4 @@
-name    := "ecstatic"
+name    := "trivial-rest"
 
 scalaVersion:= "2.10.5"
 
