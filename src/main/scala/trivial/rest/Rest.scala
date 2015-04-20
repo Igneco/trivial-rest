@@ -35,14 +35,18 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister) {
     this
   }
 
-  // TODO - CAS - 17/04/15 - Trap all get(s"/$resourceName.json") and give a custom error message for 404
   def addGetAll(resourceName: String): Unit = {
-    controller.get(s"/$resourceName.json") { request =>
+    get(s"${uriRoot.stripSuffix("/")}/$resourceName.json") { request =>
       persister.loadAll(resourceName) match {
         case Right(bytes) => render.body(bytes).contentType(utf8Json).toFuture
         case Left(whyNot) => render.status(500).plain(whyNot).toFuture
       }
     }
+  }
+
+  get(s"${uriRoot.stripSuffix("/")}/:unsupportedResourceName.json") { request =>
+    val unsupportedResource = request.routeParams("unsupportedResourceName")
+    render.status(404).plain(s"Resource type not supported: $unsupportedResource").toFuture
   }
 
   get(uriRoot) { request =>
@@ -53,6 +57,9 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister) {
 trait HttpMethod
 case object GetAll extends HttpMethod
 case object Get extends HttpMethod
+case object Put extends HttpMethod
+case object Post extends HttpMethod
+case object Delete extends HttpMethod
 
 object Json {
   val utf8Json = s"${MediaType.Json}; charset=UTF-8"

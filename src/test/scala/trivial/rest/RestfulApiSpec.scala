@@ -42,10 +42,10 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
     }
     val app = MockApp(controllerWithRest)
 
-    val response = app.get(s"/petNames.json")
+    val response = app.get(s"/petName.json")
 
     response.code must equal(404)
-    response.body must equal("Resource type not supported: /petNames.json")
+    response.body must equal("Resource type not supported: petName")
   }
 
   // UTF-8
