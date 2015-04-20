@@ -4,6 +4,7 @@ import com.twitter.finagle.http.MediaType
 import com.twitter.finatra.Controller
 import com.twitter.finatra.serialization.DefaultJacksonJsonSerializer
 import Json._
+import trivial.rest.persistence.{Persister, FileSystem}
 
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
@@ -16,7 +17,12 @@ import scala.reflect.ClassTag
  */
 trait Rest { controller: Controller =>
   private val resources = ListBuffer[String]()
-  private val rootPath : String = "/"
+  
+  // TODO - CAS - 20/04/15 - Allow client code to specify/override these
+  val fileSystemRoot: String = "src/test/resources"
+  val uriRoot : String = "/"
+  val persister: Persister = new FileSystem(fileSystemRoot)
+  val serialiser = DefaultJacksonJsonSerializer
 
   def resource[T: ClassTag](supportedMethods: HttpMethod*) = {
     def resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
@@ -32,14 +38,16 @@ trait Rest { controller: Controller =>
   def addGetAll(resourceName: String): Unit = {
     controller.get(s"/$resourceName.json") { request =>
       try {
-        render.static(s"$resourceName.json").contentType(utf8Json).toFuture
+        // TODO - CAS - 20/04/15 - if (file exists)
+        render.body(persister.loadAll(resourceName)).contentType(utf8Json).toFuture
       } catch {
+        // else ...
         case iae: IllegalArgumentException => render.status(500).plain(s"Could not find $resourceName.json").toFuture
       }
     }
   }
 
-  get(rootPath) { request =>
+  get(uriRoot) { request =>
     render.body(serialiser.serialize(resources.sorted[String])).contentType(utf8Json).toFuture
   }
 }
@@ -50,5 +58,4 @@ case object Get extends HttpMethod
 
 object Json {
   val utf8Json = s"${MediaType.Json}; charset=UTF-8"
-  val serialiser = DefaultJacksonJsonSerializer
 }

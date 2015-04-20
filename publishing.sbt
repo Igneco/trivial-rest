@@ -4,7 +4,7 @@ sonatypeSettings
 
 organization := "com.github.agmenc"
 
-version := "0.0.1"
+version := "0.0.2"
 
 pomExtra := {
   <url>https://github.com/agmenc/trivial-rest</url>
