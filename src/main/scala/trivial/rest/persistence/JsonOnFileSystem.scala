@@ -13,9 +13,16 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
       Left(s"File not found: ${fileFor(resourceName).toAbsolute}")
   }
 
-  override def save(resourceName: String, content: String) = {
+  override def save(resourceName: String, content: String): Either[String, Array[Byte]] = {
     if (docRoot.notExists) docRoot.createDirectory()
-    Left(s"Not done yet")
+    val targetFile = fileFor(resourceName)
+    if (targetFile.notExists) {
+      targetFile.createFile()
+      targetFile.appendAll(content)
+    } else {
+      targetFile.appendAll(",\n", content)
+    }
+    Right(content.getBytes)
   }
 
   def fileFor(resourceName: String): File = File(docRoot / s"$resourceName.json")
