@@ -8,6 +8,8 @@ import org.jboss.netty.handler.codec.http.HttpHeaders.Names._
 import org.scalatest.{MustMatchers, WordSpec}
 import trivial.rest.persistence.JsonOnFileSystem
 
+import scala.reflect.io.Directory
+
 class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
   val monkeysFilter = new SimpleFilter[FinagleRequest, FinagleResponse] {
     def apply(request: FinagleRequest, service: Service[FinagleRequest, FinagleResponse]) =
@@ -19,7 +21,7 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
   
   override def server = new FinatraServer {
     val controllerWithRest = new Controller {
-      new Rest(this, "/", new JsonOnFileSystem("./src/test/resources"))
+      new Rest(this, "/", new JsonOnFileSystem(Directory("src/test/resources")))
         .resource[Spaceship](GetAll)
         .resource[Vector](GetAll)
     }
