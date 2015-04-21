@@ -81,11 +81,8 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
     fail("Do Put first")
   }
 
-  // Persistence
   // Remove the .json suffix in the URL, if that is all we are going to support
   // Caching
-  // Setting URI path root
-  // Setting doc route programmatically, not via System.setProperty("com.twitter.finatra.config.docRoot", "src/test/resources")
   
   def newUpApp = MockApp(new Controller {
     new Rest(this, "/", new JsonOnFileSystem(Directory("src/test/resources")))
