@@ -8,4 +8,5 @@ class PersisterContract(persister: Persister) {
 
   def loadAll = ???
   def save = ???
+  def sequence = ???
 }

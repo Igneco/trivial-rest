@@ -37,7 +37,7 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister) {
   }
   
   def addPut(resourceName: String): Unit = {
-    post(pathTo(resourceName)) { request =>
+    put(pathTo(resourceName)) { request =>
       val body: String = request.getContentString()
       println(s"body: ${body}")
       persister.save(resourceName, body) match {

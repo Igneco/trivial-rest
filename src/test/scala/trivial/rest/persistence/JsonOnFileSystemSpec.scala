@@ -43,6 +43,14 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
     targetFile.slurp() mustEqual """{"name": "bob}"""
   }
   
+  "Sequence numbers are stored in a write-behind file on disk" in {
+    val docRoot = Directory(testRoot / "baz")
+    val jofs = new JsonOnFileSystem(docRoot)
+
+    jofs.nextSequenceNumber mustBe 1
+    jofs.nextSequenceNumber mustBe 2
+  }
+  
   // "Adding a second record appends to the data file" in {}
 
   override protected def beforeAll() = testRoot.deleteRecursively()

@@ -25,6 +25,23 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
     Right(content.getBytes)
   }
 
+  // TODO - CAS - 21/04/15 - Consider Scala async to make this write-behind: https://github.com/scala/async
+  override def nextSequenceNumber: Int = {
+    val resourceName = "_sequence"
+    if (docRoot.notExists) docRoot.createDirectory()
+    val targetFile = fileFor(resourceName)
+    if (targetFile.notExists) {
+      targetFile.createFile()
+      targetFile.appendAll("1")
+      1
+    } else {
+      val previous = targetFile.slurp().toInt
+      val next = previous + 1
+      targetFile.writeAll(next.toString)
+      next
+    }
+  }
+
   def fileFor(resourceName: String): File = File(docRoot / s"$resourceName.json")
 
   def hasLocalFile(file: File): Boolean = {
