@@ -26,6 +26,7 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
   }
 
   // TODO - CAS - 21/04/15 - Consider Scala async to make this write-behind: https://github.com/scala/async
+  // TODO - CAS - 21/04/15 - Make this less ugly
   override def nextSequenceNumber: Int = {
     val resourceName = "_sequence"
     if (docRoot.notExists) docRoot.createDirectory()

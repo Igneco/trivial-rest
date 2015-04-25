@@ -49,24 +49,29 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
     response.body must equal("Resource type not supported: petName")
   }
 
-  "PUTting a new item creates a unique ID for it" in {
+  "POSTing a new item creates a unique ID for it" in {
     val app = newUpApp
 
-    val response = app.put(s"/planet", body = """{"name": "Earth", "classification": "tolerable"}""")
+    val response = app.post(s"/planet", body = """{"name": "Earth", "classification": "tolerable"}""")
 
-    response.body must equal("""{"id": "1", "name": "Earth", "classification": "tolerable"}""")
+    response.body must equal(
+      """{
+        |  "id": "1",
+        |  "name": "Earth",
+        |  "classification": "tolerable"
+        |}""".stripMargin)
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
 
-  "You can't PUT an item with an ID - the system will choose one for you" in {
+  "You can't POST an item with an ID - the system will choose one for you" in {
     val app = newUpApp
 
-    val response = app.put(s"/planet", body = """{"id": "123", "name": "Earth", "classification": "tolerable"}""")
+    val response = app.post(s"/planet", body = """{"id": "123", "name": "Earth", "classification": "tolerable"}""")
 
     // TODO - CAS - 21/04/15 - Find correct HTTP response code
     response.code must equal(400)
-    response.body must equal("You can't PUT an item with an ID - the system will choose one for you")
+    response.body must equal("You can't POST an item with an ID - the system will choose one for you")
   }
 
   "We can POST many items at once to be persisted" in {
@@ -78,7 +83,11 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
         |  {"name": "Venus", "classification": "also bloody hot"}
         |]""".stripMargin)
     
-    fail("Do Put first")
+    fail("Do POST first")
+  }
+  
+  "Each successive item gets a new, unique, sequence ID" in {
+    fail("Each successive item gets a new, unique, sequence ID")
   }
 
   // Remove the .json suffix in the URL, if that is all we are going to support
@@ -88,7 +97,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
     new Rest(this, "/", new JsonOnFileSystem(Directory("src/test/resources")))
       .resource[Spaceship](GetAll)
       .resource[Vector](GetAll)
-      .resource[Planet](GetAll, Put)
+      .resource[Planet](GetAll, Post)
   })
 
   private def validateJsonResponse(app: MockApp, path: String, expectedContents: String): Unit = {
@@ -100,8 +109,12 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
   }
 }
 
-case class Spaceship(id: String, name: String, personnel: Int, bearing: Vector)
+case class Spaceship(id: Option[String], name: String, personnel: Int, bearing: Vector)// extends Restable
 
-case class Vector(id: String, angle: BigDecimal, magnitude: BigDecimal)
+case class Vector(id: Option[String], angle: BigDecimal, magnitude: BigDecimal)// extends Restable
 
-case class Planet(id: String, name: String, classification: String)
+// TODO - CAS - 23/04/15 - Restive? RestableData? Do we need this? Can it be implicit?
+trait Restable {
+  def id: Option[String]
+//  def createDate: String
+}

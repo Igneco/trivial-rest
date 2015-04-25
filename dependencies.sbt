@@ -5,10 +5,12 @@ resolvers += "twitter-repo" at "http://maven.twttr.com"
 updateOptions := updateOptions.value.withCachedResolution(cachedResoluton = true)
 
 val productionDependencies = Seq(
-  "com.github.agmenc" %% "trivial-rest" % "0.0.1",
   "com.twitter" %% "finatra" % "1.6.0"
     exclude("org.scalatest", "scalatest_2.10")
-    exclude("com.google.code.findbugs", "jsr305")
+    exclude("com.google.code.findbugs", "jsr305"),
+  "org.json4s" %% "json4s-native" % "3.2.11"
+    exclude("org.scala-lang", "scala-compiler"),
+  "org.json4s" %% "json4s-ext" % "3.2.11"
 )
 
 val testDependencies = Seq(
