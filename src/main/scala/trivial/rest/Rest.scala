@@ -56,7 +56,7 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister) {
     post(pathTo(resourceName)) { request =>
       val eitherT: Either[String, T] = deserialise(request.getContentString())
       // TODO - CAS - 22/04/15 - insert the ID by copying the case class?
-      val copied: Either[String, T] = eitherT.right.map(t => t)
+      val copied = eitherT.right.map(t => t.withId(s"${persister.nextSequenceNumber}"))
       val svzed = copied.right.map(t => Serialization.writePretty(t)).right.flatMap(pj => persister.save(resourceName, pj))
 
       svzed match {

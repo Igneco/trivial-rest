@@ -56,9 +56,9 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
 
     response.body must equal(
       """{
-        |  "id": "1",
-        |  "name": "Earth",
-        |  "classification": "tolerable"
+        |  "id":"1",
+        |  "name":"Earth",
+        |  "classification":"tolerable"
         |}""".stripMargin)
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
