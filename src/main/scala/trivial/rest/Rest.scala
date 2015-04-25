@@ -31,7 +31,7 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister) {
 
   val serialiser = DefaultJacksonJsonSerializer
 
-  def resource[T <: AnyRef : ClassTag](supportedMethods: HttpMethod*)(implicit mf: scala.reflect.Manifest[T]) = {
+  def resource[T <: Restable with AnyRef : ClassTag](supportedMethods: HttpMethod*)(implicit mf: scala.reflect.Manifest[T]) = {
     def resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
 
     resources.append(resourceName)
@@ -45,11 +45,9 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister) {
     this
   }
 
-  def addPost[T <: AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T]): Unit = {
+  def addPost[T <: Restable with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T]): Unit = {
     def deserialise(body: String): Either[String, T] =
       try {
-//        val asJson: JValue = JsonParser.parse(body, true)
-//        val aPlanet: T = asJson.extract[T]
         Right(Serialization.read[T](body))
       } catch {
         case e: Exception => Left(s"Failed to deserialise into $resourceName, due to: $e")
@@ -59,8 +57,7 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister) {
       val eitherT: Either[String, T] = deserialise(request.getContentString())
       // TODO - CAS - 22/04/15 - insert the ID by copying the case class?
       val copied: Either[String, T] = eitherT.right.map(t => t)
-      val szed: Either[String, String] = copied.right.map(t => Serialization.writePretty(t))
-      val svzed: Either[String, Array[Byte]] = szed.right.flatMap(pj => persister.save(resourceName, pj))
+      val svzed = copied.right.map(t => Serialization.writePretty(t)).right.flatMap(pj => persister.save(resourceName, pj))
 
       svzed match {
         case Right(bytes) => render.body(bytes).contentType(utf8Json).toFuture
@@ -96,5 +93,3 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister) {
     render.body(serialiser.serialize(resources.sorted[String])).contentType(utf8Json).toFuture
   }
 }
-
-case class Planet(id: Option[String], name: String, classification: String)// extends Restable

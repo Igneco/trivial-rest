@@ -85,7 +85,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
     
     fail("Do POST first")
   }
-  
+
   "Each successive item gets a new, unique, sequence ID" in {
     fail("Each successive item gets a new, unique, sequence ID")
   }
@@ -109,12 +109,14 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
   }
 }
 
-case class Spaceship(id: Option[String], name: String, personnel: Int, bearing: Vector)// extends Restable
+case class Spaceship(id: Option[String], name: String, personnel: Int, bearing: Vector) extends Restable {
+  override def withId(id: String) = copy(id = Some(id))
+}
 
-case class Vector(id: Option[String], angle: BigDecimal, magnitude: BigDecimal)// extends Restable
+case class Vector(id: Option[String], angle: BigDecimal, magnitude: BigDecimal) extends Restable {
+  override def withId(id: String) = copy(id = Some(id))
+}
 
-// TODO - CAS - 23/04/15 - Restive? RestableData? Do we need this? Can it be implicit?
-trait Restable {
-  def id: Option[String]
-//  def createDate: String
+case class Planet(id: Option[String], name: String, classification: String) extends Restable {
+  override def withId(id: String) = copy(id = Some(id))
 }
