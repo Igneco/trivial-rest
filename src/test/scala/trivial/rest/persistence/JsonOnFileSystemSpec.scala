@@ -7,7 +7,7 @@ import scala.reflect.io.{File, Path, Directory}
 class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
   val testRoot = Directory("target/json")
 
-  "Meets the PersisterContract terms" in {
+  "TODO - Meets the PersisterContract terms" in {
 //    new PersisterContract(new JsonOnFileSystem("target/test"))
     fail("train time")
   }
