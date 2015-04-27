@@ -33,10 +33,10 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
     val app = MockApp(controllerWithRest)
 
     validateJsonResponse(app, "/spaceship.json", """[
-                                                   |  {"id": "7", "name": "Enterprise", "personnel": 150, "vector": "24"},
-                                                   |  {"id": "5", "name": "Laziness", "personnel": 20, "vector": "2"},
-                                                   |  {"id": "3", "name": "Sloth", "personnel": 1, "vector": "4"},
-                                                   |  {"id": "1", "name": "Gr€€d", "personnel": 5, "vector": "1"}
+                                                   |{"id": "7", "name": "Enterprise", "personnel": 150, "vector": "24"},
+                                                   |{"id": "5", "name": "Laziness", "personnel": 20, "vector": "2"},
+                                                   |{"id": "3", "name": "Sloth", "personnel": 1, "vector": "4"},
+                                                   |{"id": "1", "name": "Gr€€d", "personnel": 5, "vector": "1"}
                                                    |]""".stripMargin)
   }
 
@@ -55,12 +55,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
 
     val response = app.post(s"/planet", body = """{"name": "Earth", "classification": "tolerable"}""")
 
-    response.body must equal(
-      """{
-        |  "id":"1",
-        |  "name":"Earth",
-        |  "classification":"tolerable"
-        |}""".stripMargin)
+    response.body must equal("""{"id":"1","name":"Earth","classification":"tolerable"}""")
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
@@ -87,9 +82,21 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
   }
 
   "TODO - Each successive item gets a new, unique, sequence ID" in {
-    fail("TODO - Each successive item gets a new, unique, sequence ID")
-  }
+    val app = newUpApp
 
+    app.post(s"/planet", body = """{"name": "Earth",   "classification": "tolerable"}""")
+    app.post(s"/planet", body = """{"name": "Mars",    "classification": "chilly"}""")
+    app.post(s"/planet", body = """{"name": "Uranus",  "classification": "a little dark"}""")
+    
+    val response = app.get("/planet")
+
+    response.code must equal(200)
+    response.body must equal("""[
+                               |{"id":"1","name":"Earth","classification":"tolerable"},
+                               |{"id":"2","name":"Mars","classification":"chilly"},
+                               |{"id":"3","name":"Uranus","classification":"a little dark"}
+                               |]""".stripMargin)
+  }
 
   "TODO - Return a 405 for HTTP methods that are not supported" in {
     /*

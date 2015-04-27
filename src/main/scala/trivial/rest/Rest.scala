@@ -58,9 +58,10 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister, valida
       val deserialisedT: Either[Failure, T] = deserialise(request.getContentString())
       val validatedT: Either[Failure, T] = deserialisedT.right.flatMap(validator.validate)
       val copied = validatedT.right.map(t => t.withId(s"${persister.nextSequenceNumber}"))
-      val svzed = copied.right.map(t => Serialization.writePretty(t)).right.flatMap(pj => persister.save(resourceName, pj))
+      val serialised: Either[Failure, String] = copied.right.map(t => Serialization.write(t))
+      val persisted = serialised.right.flatMap(pj => persister.save(resourceName, pj))
 
-      svzed match {
+      persisted match {
         case Right(bytes)  => render.body(bytes).contentType(utf8Json).toFuture
         case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
       }
