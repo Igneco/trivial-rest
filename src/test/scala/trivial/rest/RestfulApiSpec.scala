@@ -6,6 +6,7 @@ import com.twitter.finatra.test.MockApp
 import org.jboss.netty.handler.codec.http.HttpHeaders
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names
 import org.scalatest.{MustMatchers, WordSpec}
+import trivial.rest.TestDirectories._
 import trivial.rest.persistence.JsonOnFileSystem
 
 import scala.reflect.io.Directory
@@ -90,11 +91,12 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
     fail("Each successive item gets a new, unique, sequence ID")
   }
 
+  // TODO - CAS - 27/04/15:
   // Remove the .json suffix in the URL, if that is all we are going to support
   // Caching
   
   def newUpApp = MockApp(new Controller {
-    new Rest(this, "/", new JsonOnFileSystem(Directory("src/test/resources")))
+    new Rest(this, "/", new JsonOnFileSystem(nextTestDir))
       .resource[Spaceship](GetAll)
       .resource[Vector](GetAll)
       .resource[Planet](GetAll, Post)
