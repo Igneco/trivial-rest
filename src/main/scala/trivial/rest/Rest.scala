@@ -4,8 +4,7 @@ import com.twitter.finagle.http.MediaType
 import com.twitter.finatra.serialization.DefaultJacksonJsonSerializer
 import com.twitter.finatra.{Controller, Request}
 import org.json4s._
-import org.json4s.native.JsonMethods._
-import org.json4s.native.{JsonParser, Serialization}
+import org.json4s.native.Serialization
 import trivial.rest.persistence.Persister
 import trivial.rest.validation.{RestRulesValidator, Validator}
 
@@ -47,19 +46,30 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister, valida
   }
 
   def addPost[T <: Restable with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T]): Unit = {
-    def deserialise(body: String): Either[Failure, T] =
+    def deserialise(body: String): Either[Failure, Seq[T]] =
       try {
-        Right(Serialization.read[T](body))
+        Right(Serialization.read[Seq[T]](body))
       } catch {
         case e: Exception => Left(Failure(500, s"Failed to deserialise into $resourceName, due to: $e"))
       }
     
     post(pathTo(resourceName)) { request =>
-      val deserialisedT: Either[Failure, T] = deserialise(request.getContentString())
-      val validatedT: Either[Failure, T] = deserialisedT.right.flatMap(validator.validate)
-      val copied = validatedT.right.map(t => t.withId(s"${persister.nextSequenceNumber}"))
-      val serialised: Either[Failure, String] = copied.right.map(t => Serialization.write(t))
-      val persisted = serialised.right.flatMap(pj => persister.save(resourceName, pj))
+      // TODO - CAS - 27/04/15 - Yes, this will become a for-comp, but only when I have worked out all the bits
+      
+      val persisted = try {
+        val deserialisedT: Either[Failure, Seq[T]] = deserialise(request.getContentString())
+        val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
+        val copied: Either[Failure, Seq[Restable]] = validatedT.right.map(_.map(_.withId(s"${persister.nextSequenceNumber}")))
+
+        val stringOffDisk: Either[Failure, Array[Byte]] = persister.loadAll(resourceName)
+        val allPrevious: Either[Failure, Seq[T]] = stringOffDisk.right.flatMap(bytes => deserialise(new String(bytes.map(_.toChar))))
+        val appended: Either[Failure, Seq[Restable]] = allPrevious.right.flatMap(st => copied.right.map(moreSt => st ++ moreSt))
+
+        val serialised: Either[Failure, String] = appended.right.map(t => Serialization.write(t))
+        serialised.right.flatMap(pj => persister.save(resourceName, pj))
+      } catch {
+        case e: Exception => Left(Failure(500, s"It went horribly wrong: $e"))
+      }
 
       persisted match {
         case Right(bytes)  => render.body(bytes).contentType(utf8Json).toFuture

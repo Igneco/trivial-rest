@@ -3,7 +3,6 @@ package trivial.rest
 import com.twitter.finagle.http.MediaType
 import com.twitter.finatra.Controller
 import com.twitter.finatra.test.MockApp
-import org.jboss.netty.handler.codec.http.HttpHeaders
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names
 import org.scalatest.{MustMatchers, WordSpec}
 import trivial.rest.TestDirectories._
@@ -53,9 +52,9 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
   "POSTing a new item creates a unique ID for it" in {
     val app = newUpApp
 
-    val response = app.post(s"/planet", body = """{"name": "Earth", "classification": "tolerable"}""")
+    val response = app.post(s"/planet", body = """[{"name": "Earth", "classification": "tolerable"}]""")
 
-    response.body must equal("""{"id":"1","name":"Earth","classification":"tolerable"}""")
+    response.body must equal("""[{"id":"1","name":"Earth","classification":"tolerable"}]""")
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
@@ -63,39 +62,40 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
   "You can't POST an item with an ID - the system will allocate an ID upon resource creation" in {
     val app = newUpApp
 
-    val response = app.post(s"/planet", body = """{"id": "123", "name": "Earth", "classification": "tolerable"}""")
+    val response = app.post(s"/planet", body = """[{"id": "123", "name": "Earth", "classification": "tolerable"}]""")
 
     response.code must equal(403)
     response.body must equal("You can't POST an item with an ID - the system will allocate an ID upon resource creation")
   }
 
-  "TODO - We can POST many items at once to be persisted" in {
+  "We can POST many items at once to be persisted" in {
     val app = newUpApp
 
-    val response = app.post(s"/planet", body =
-      """[
-        |  {"name": "Mercury", "classification": "bloody hot"},
-        |  {"name": "Venus", "classification": "also bloody hot"}
-        |]""".stripMargin)
+    val postResponse = app.post(s"/planet", body = """[
+                                                     |  {"name": "Mercury", "classification": "bloody hot"},
+                                                     |  {"name": "Venus", "classification": "also bloody hot"}
+                                                     |]""".stripMargin)
     
-    fail("TODO - Do single POST first")
+    postResponse.body must equal("""[{"id":"1","name":"Mercury","classification":"bloody hot"},{"id":"2","name":"Venus","classification":"also bloody hot"}]""")
+    postResponse.code must equal(200)
+
+    val getResponse = app.get("/planet")
+    
+    getResponse.code must equal(200)
+    getResponse.body must equal( """[{"id":"1","name":"Mercury","classification":"bloody hot"},{"id":"2","name":"Venus","classification":"also bloody hot"}]""")
   }
 
-  "TODO - Each successive item gets a new, unique, sequence ID" in {
+  "Each successive item gets a new, unique, sequence ID" in {
     val app = newUpApp
 
-    app.post(s"/planet", body = """{"name": "Earth",   "classification": "tolerable"}""")
-    app.post(s"/planet", body = """{"name": "Mars",    "classification": "chilly"}""")
-    app.post(s"/planet", body = """{"name": "Uranus",  "classification": "a little dark"}""")
+    app.post(s"/planet", body = """[{"name": "Earth","classification": "tolerable"}]""")
+    app.post(s"/planet", body = """[{"name": "Mars","classification": "chilly"}]""")
+    app.post(s"/planet", body = """[{"name": "Uranus","classification": "a little dark"}]""")
     
     val response = app.get("/planet")
 
     response.code must equal(200)
-    response.body must equal("""[
-                               |{"id":"1","name":"Earth","classification":"tolerable"},
-                               |{"id":"2","name":"Mars","classification":"chilly"},
-                               |{"id":"3","name":"Uranus","classification":"a little dark"}
-                               |]""".stripMargin)
+    response.body must equal("""[{"id":"1","name":"Earth","classification":"tolerable"},{"id":"2","name":"Mars","classification":"chilly"},{"id":"3","name":"Uranus","classification":"a little dark"}]""".stripMargin)
   }
 
   "TODO - Return a 405 for HTTP methods that are not supported" in {

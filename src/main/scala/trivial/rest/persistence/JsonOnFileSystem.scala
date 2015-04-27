@@ -6,25 +6,19 @@ import trivial.rest.Failure
 import scala.reflect.io.{File, Directory}
 
 class JsonOnFileSystem(docRoot: Directory) extends Persister {
-  private val start = "[\n".getBytes
-  private val end =   "\n]".getBytes
 
   override def loadAll(resourceName: String) = {
     if (hasLocalFile(fileFor(resourceName)))
-      Right(start ++ readFileToByteArray(fileFor(resourceName).jfile) ++ end)
+      Right(readFileToByteArray(fileFor(resourceName).jfile))
     else
-      Left(Failure(500, s"File not found: ${fileFor(resourceName).toAbsolute}"))
+      Right("[]".getBytes)
   }
 
   override def save(resourceName: String, content: String): Either[Failure, Array[Byte]] = {
     if (docRoot.notExists) docRoot.createDirectory()
     val targetFile = fileFor(resourceName)
-    if (targetFile.notExists) {
-      targetFile.createFile()
-      targetFile.appendAll(content)
-    } else {
-      targetFile.appendAll(",\n", content)
-    }
+    if (targetFile.notExists) targetFile.createFile()
+    targetFile.writeAll(content)
     Right(content.getBytes)
   }
 
