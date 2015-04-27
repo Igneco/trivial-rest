@@ -1,6 +1,7 @@
 package trivial.rest.persistence
 
 import org.apache.commons.io.FileUtils._
+import trivial.rest.Failure
 
 import scala.reflect.io.{File, Directory}
 
@@ -10,10 +11,10 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
     if (hasLocalFile(fileFor(resourceName)))
       Right(readFileToByteArray(fileFor(resourceName).jfile))
     else
-      Left(s"File not found: ${fileFor(resourceName).toAbsolute}")
+      Left(Failure(500, s"File not found: ${fileFor(resourceName).toAbsolute}"))
   }
 
-  override def save(resourceName: String, content: String): Either[String, Array[Byte]] = {
+  override def save(resourceName: String, content: String): Either[Failure, Array[Byte]] = {
     if (docRoot.notExists) docRoot.createDirectory()
     val targetFile = fileFor(resourceName)
     if (targetFile.notExists) {
@@ -46,7 +47,7 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
   def fileFor(resourceName: String): File = File(docRoot / s"$resourceName.json")
 
   def hasLocalFile(file: File): Boolean = {
-    if(file.toString.contains(".."))     return false
+    if(file.toString().contains(".."))     return false
     if(!file.exists || file.isDirectory) return false
     if(!file.canRead)                    return false
 

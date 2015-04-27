@@ -7,6 +7,7 @@ import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.json4s.native.{JsonParser, Serialization}
 import trivial.rest.persistence.Persister
+import trivial.rest.validation.{RestRulesValidator, Validator}
 
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
@@ -21,7 +22,7 @@ import scala.reflect.ClassTag
  *   Case classes as a schema for JSON
  *   Multiple versions of a case class supported at the same time (Record, Record2, etc), based on cascading support
  */
-class Rest(controller: Controller, uriRoot: String, persister: Persister) {
+class Rest(controller: Controller, uriRoot: String, persister: Persister, validator: Validator = new RestRulesValidator) {
   private val resources = ListBuffer[String]()
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"
   
@@ -46,22 +47,22 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister) {
   }
 
   def addPost[T <: Restable with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T]): Unit = {
-    def deserialise(body: String): Either[String, T] =
+    def deserialise(body: String): Either[Failure, T] =
       try {
         Right(Serialization.read[T](body))
       } catch {
-        case e: Exception => Left(s"Failed to deserialise into $resourceName, due to: $e")
+        case e: Exception => Left(Failure(500, s"Failed to deserialise into $resourceName, due to: $e"))
       }
     
     post(pathTo(resourceName)) { request =>
-      val eitherT: Either[String, T] = deserialise(request.getContentString())
-      // TODO - CAS - 22/04/15 - insert the ID by copying the case class?
-      val copied = eitherT.right.map(t => t.withId(s"${persister.nextSequenceNumber}"))
+      val deserialisedT: Either[Failure, T] = deserialise(request.getContentString())
+      val validatedT: Either[Failure, T] = deserialisedT.right.flatMap(validator.validate)
+      val copied = validatedT.right.map(t => t.withId(s"${persister.nextSequenceNumber}"))
       val svzed = copied.right.map(t => Serialization.writePretty(t)).right.flatMap(pj => persister.save(resourceName, pj))
 
       svzed match {
-        case Right(bytes) => render.body(bytes).contentType(utf8Json).toFuture
-        case Left(whyNot) => render.status(500).plain(whyNot).toFuture
+        case Right(bytes)  => render.body(bytes).contentType(utf8Json).toFuture
+        case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
       }
       
       // TODO - CAS - 22/04/15 - Rebuild cache of T
@@ -76,7 +77,7 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister) {
     def loadAll(request: Request) =
       persister.loadAll(resourceName) match {
         case Right(bytes) => render.body(bytes).contentType(utf8Json).toFuture
-        case Left(whyNot) => render.status(500).plain(whyNot).toFuture
+        case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
       }
 
     // TODO - CAS - 20/04/15 - Remove support for the suffixed URI

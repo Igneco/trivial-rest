@@ -65,17 +65,16 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
 
-  "You can't POST an item with an ID - the system will choose one for you" in {
+  "You can't POST an item with an ID - the system will allocate an ID upon resource creation" in {
     val app = newUpApp
 
     val response = app.post(s"/planet", body = """{"id": "123", "name": "Earth", "classification": "tolerable"}""")
 
-    // TODO - CAS - 21/04/15 - Find correct HTTP response code
-    response.code must equal(400)
-    response.body must equal("You can't POST an item with an ID - the system will choose one for you")
+    response.code must equal(403)
+    response.body must equal("You can't POST an item with an ID - the system will allocate an ID upon resource creation")
   }
 
-  "We can POST many items at once to be persisted" in {
+  "TODO - We can POST many items at once to be persisted" in {
     val app = newUpApp
 
     val response = app.post(s"/planet", body =
@@ -84,11 +83,21 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
         |  {"name": "Venus", "classification": "also bloody hot"}
         |]""".stripMargin)
     
-    fail("Do POST first")
+    fail("TODO - Do single POST first")
   }
 
-  "Each successive item gets a new, unique, sequence ID" in {
-    fail("Each successive item gets a new, unique, sequence ID")
+  "TODO - Each successive item gets a new, unique, sequence ID" in {
+    fail("TODO - Each successive item gets a new, unique, sequence ID")
+  }
+
+
+  "TODO - Return a 405 for HTTP methods that are not supported" in {
+    /*
+    10.4.6 405 Method Not Allowed
+
+The method specified in the Request-Line is not allowed for the resource identified by the Request-URI. The response MUST include an Allow header containing a list of valid methods for the requested resource.
+     */
+    fail("TODO - Return a 405 for HTTP methods that are not supported")
   }
 
   // TODO - CAS - 27/04/15:
