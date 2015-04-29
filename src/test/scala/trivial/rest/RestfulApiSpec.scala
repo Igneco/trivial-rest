@@ -98,7 +98,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
     response.body must equal("""[{"id":"1","name":"Earth","classification":"tolerable"},{"id":"2","name":"Mars","classification":"chilly"},{"id":"3","name":"Uranus","classification":"a little dark"}]""".stripMargin)
   }
 
-  "TODO - Return a 405 for HTTP methods that are not supported" in {
+  "Return a 405 for HTTP methods that are not supported" in {
     val app = newUpApp
 
     val response = app.post("/spaceship", body = "")
