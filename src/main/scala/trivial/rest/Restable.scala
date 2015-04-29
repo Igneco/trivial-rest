@@ -5,7 +5,7 @@ trait Restable {
   def id: Option[String]
 
   // TODO - CAS - 27/04/15 - Can't use this.type here, because it returns a new instance. Ideas?
-  def withId(id: String): Restable
+  def withId(newId: String): Restable
 
   //  def createDate: String
 }

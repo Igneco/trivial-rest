@@ -39,12 +39,26 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister, valida
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
       case Post => addPost(resourceName)(mf)
+      // case Get => /:resourceName/:id
+      case x => throw new UnsupportedOperationException(s"I haven't built support for $x yet")
+    }
+    
+    val unsupportedMethods: Set[HttpMethod] = HttpMethod.all.diff(supportedMethods.toSet)
+    def unsupport(method: HttpMethod) = (request: Request) => render.status(405)
+      .plain(s"Method not allowed: $method. Methods supported by /$resourceName are: ${supportedMethods.mkString(", ")}").toFuture
+    
+    unsupportedMethods foreach {
+      case GetAll => get(pathTo(resourceName)) {unsupport(GetAll)}
+      case Post => post(pathTo(resourceName)) {unsupport(Post)}
+      case Get => // get(pathTo(resourceName)) { unsupport }
+      case Put => put(pathTo(resourceName)) {unsupport(Put)}
+      case Delete => delete(pathTo(resourceName)) {unsupport(Delete)}
       case x => throw new UnsupportedOperationException(s"I haven't built support for $x yet")
     }
     
     this
   }
-
+  
   def addPost[T <: Restable with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T]): Unit = {
     def deserialise(body: String): Either[Failure, Seq[T]] =
       try {
@@ -80,9 +94,7 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister, valida
     }
   }
 
-  def pathTo(resourceName: String): String = {
-    s"${uriRoot.stripSuffix("/")}/$resourceName"
-  }
+  def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
   def addGetAll(resourceName: String): Unit = {
     def loadAll(request: Request) =

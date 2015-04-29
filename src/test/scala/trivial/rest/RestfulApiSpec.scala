@@ -99,12 +99,12 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
   }
 
   "TODO - Return a 405 for HTTP methods that are not supported" in {
-    /*
-    10.4.6 405 Method Not Allowed
+    val app = newUpApp
 
-The method specified in the Request-Line is not allowed for the resource identified by the Request-URI. The response MUST include an Allow header containing a list of valid methods for the requested resource.
-     */
-    fail("TODO - Return a 405 for HTTP methods that are not supported")
+    val response = app.post("/spaceship", body = "")
+
+    response.code must equal(405)
+    response.body must equal( """Method not allowed: POST. Methods supported by /spaceship are: GET all""")
   }
 
   // TODO - CAS - 27/04/15:
@@ -128,13 +128,13 @@ The method specified in the Request-Line is not allowed for the resource identif
 }
 
 case class Spaceship(id: Option[String], name: String, personnel: Int, bearing: Vector) extends Restable {
-  override def withId(id: String) = copy(id = Some(id))
+  override def withId(newId: String) = copy(id = Some(newId))
 }
 
 case class Vector(id: Option[String], angle: BigDecimal, magnitude: BigDecimal) extends Restable {
-  override def withId(id: String) = copy(id = Some(id))
+  override def withId(newId: String) = copy(id = Some(newId))
 }
 
 case class Planet(id: Option[String], name: String, classification: String) extends Restable {
-  override def withId(id: String) = copy(id = Some(id))
+  override def withId(newId: String) = copy(id = Some(newId))
 }
