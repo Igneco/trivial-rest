@@ -2,7 +2,8 @@ package trivial.rest
 
 import com.twitter.finagle.http.MediaType
 import com.twitter.finatra.serialization.DefaultJacksonJsonSerializer
-import com.twitter.finatra.{Controller, Request}
+import com.twitter.finatra.{ResponseBuilder, Controller, Request}
+import com.twitter.util.Future
 import org.json4s._
 import org.json4s.native.Serialization
 import trivial.rest.persistence.Persister
@@ -32,7 +33,7 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister, valida
   val serialiser = DefaultJacksonJsonSerializer
 
   def resource[T <: Restable with AnyRef : ClassTag](supportedMethods: HttpMethod*)(implicit mf: scala.reflect.Manifest[T]) = {
-    def resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
+    lazy val resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
 
     resources.append(resourceName)
 
@@ -42,17 +43,26 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister, valida
       // case Get => /:resourceName/:id
       case x => throw new UnsupportedOperationException(s"I haven't built support for $x yet")
     }
-    
+
     val unsupportedMethods: Set[HttpMethod] = HttpMethod.all.diff(supportedMethods.toSet)
-    def unsupport(method: HttpMethod) = (request: Request) => render.status(405)
-      .plain(s"Method not allowed: $method. Methods supported by /$resourceName are: ${supportedMethods.mkString(", ")}").toFuture
-    
+
+    def unsupportedError(httpMethod: HttpMethod) =
+      s"Method not allowed: $httpMethod. Methods supported " +
+        s"by /$resourceName are: ${supportedMethods.mkString(", ")}"
+
+    type ControllerFunction = (String) => ((Request) => Future[ResponseBuilder]) => Unit
+
+    def unsupport(f: ControllerFunction, httpMethod: HttpMethod) =
+      f(pathTo(resourceName)) { request =>
+        render.status(405).plain(unsupportedError(httpMethod)).toFuture
+      }
+
     unsupportedMethods foreach {
-      case GetAll => get(pathTo(resourceName)) {unsupport(GetAll)}
-      case Post => post(pathTo(resourceName)) {unsupport(Post)}
-      case Get => // get(pathTo(resourceName)) { unsupport }
-      case Put => put(pathTo(resourceName)) {unsupport(Put)}
-      case Delete => delete(pathTo(resourceName)) {unsupport(Delete)}
+      case GetAll => unsupport(get, GetAll)
+      case Post => unsupport(post, Post)
+      case Get => // get(pathTo(resourceName)) { unsupport } // us2(get, Get, ":idParam")
+      case Put => unsupport(put, Put)
+      case Delete => unsupport(delete, Delete)
       case x => throw new UnsupportedOperationException(s"I haven't built support for $x yet")
     }
     
