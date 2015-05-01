@@ -35,8 +35,9 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
   In this test, the monkeysFilter is NOT called.
   */
   "Charset for JSON data is UTF-8" in {
-    get("/spaceship.json")
+    get("/vector")
 
+    println(s"response.body: ${response.body}")
     response.getHeader(CONTENT_TYPE) must equal("application/json; charset=UTF-8")
   }
 }

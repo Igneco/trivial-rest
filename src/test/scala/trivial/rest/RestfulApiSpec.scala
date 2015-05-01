@@ -4,13 +4,16 @@ import com.twitter.finagle.http.MediaType
 import com.twitter.finatra.Controller
 import com.twitter.finatra.test.MockApp
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names
-import org.scalatest.{MustMatchers, WordSpec}
+import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 import trivial.rest.TestDirectories._
 import trivial.rest.persistence.JsonOnFileSystem
 
 import scala.reflect.io.Directory
 
-class RestfulApiSpec extends WordSpec with MustMatchers {
+class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
+
+  override protected def beforeAll() = cleanTestDirs()
+  override protected def afterAll()  = beforeAll()
 
   "The root path provides a not-quite-hypertext list of supported resource types" in {
     val controllerWithRest = new Controller {
@@ -24,6 +27,9 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
     validateJsonResponse(app, "/", """["spaceship","vector"]""")
   }
 
+  // TODO - CAS - 01/05/15 - Split this into two tests:
+  //      (1) We can do a GetAll
+  //      (2) Resources can reference other resources, and these will be de/serialised correctly
   "Registering a resource type as a GetAll allows bulk download" in {
     val controllerWithRest = new Controller {
       new Rest(this, "/", new JsonOnFileSystem(Directory("src/test/resources")))
@@ -125,16 +131,4 @@ class RestfulApiSpec extends WordSpec with MustMatchers {
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
-}
-
-case class Spaceship(id: Option[String], name: String, personnel: Int, bearing: Vector) extends Restable {
-  override def withId(newId: String) = copy(id = Some(newId))
-}
-
-case class Vector(id: Option[String], angle: BigDecimal, magnitude: BigDecimal) extends Restable {
-  override def withId(newId: String) = copy(id = Some(newId))
-}
-
-case class Planet(id: Option[String], name: String, classification: String) extends Restable {
-  override def withId(newId: String) = copy(id = Some(newId))
 }

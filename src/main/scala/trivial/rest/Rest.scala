@@ -32,7 +32,7 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister, valida
 
   val serialiser = DefaultJacksonJsonSerializer
 
-  def resource[T <: Restable with AnyRef : ClassTag](supportedMethods: HttpMethod*)(implicit mf: scala.reflect.Manifest[T]) = {
+  def resource[T <: Restable[T] with AnyRef : ClassTag](supportedMethods: HttpMethod*)(implicit mf: scala.reflect.Manifest[T]) = {
     lazy val resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
 
     resources.append(resourceName)
@@ -69,7 +69,8 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister, valida
     this
   }
   
-  def addPost[T <: Restable with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T]): Unit = {
+  def addPost[T <: Restable[T] with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T]): Unit = {
+    // TODO - CAS - 01/05/15 - This and the copy in Persister -> put into a Serialiser dependency
     def deserialise(body: String): Either[Failure, Seq[T]] =
       try {
         Right(Serialization.read[Seq[T]](body))
@@ -79,22 +80,18 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister, valida
     
     post(pathTo(resourceName)) { request =>
       // TODO - CAS - 27/04/15 - Yes, this will become a for-comp, but only when I have worked out all the bits
-      
+
       val persisted = try {
         val deserialisedT: Either[Failure, Seq[T]] = deserialise(request.getContentString())
         val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
-        val copied: Either[Failure, Seq[Restable]] = validatedT.right.map(_.map(_.withId(s"${persister.nextSequenceNumber}")))
-
-        val stringOffDisk: Either[Failure, Array[Byte]] = persister.loadAll(resourceName)
-        val allPrevious: Either[Failure, Seq[T]] = stringOffDisk.right.flatMap(bytes => deserialise(new String(bytes.map(_.toChar))))
-        val appended: Either[Failure, Seq[Restable]] = allPrevious.right.flatMap(st => copied.right.map(moreSt => st ++ moreSt))
-
-        val serialised: Either[Failure, String] = appended.right.map(t => Serialization.write(t))
-        serialised.right.flatMap(pj => persister.save(resourceName, pj))
+        val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(s"${persister.nextSequenceNumber}")))
+        val saved: Either[Failure, Seq[T]] = copiedWithSeqId.right.flatMap(pj => persister.save(resourceName, pj))
+        val serialised: Either[Failure, String] = saved.right.map(t => Serialization.write(t))
+        serialised
       } catch {
         case e: Exception => Left(Failure(500, s"It went horribly wrong: $e"))
       }
-
+      
       persisted match {
         case Right(bytes)  => render.body(bytes).contentType(utf8Json).toFuture
         case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
@@ -106,10 +103,10 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister, valida
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
-  def addGetAll(resourceName: String): Unit = {
+  def addGetAll[T <: Restable[T] with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T]): Unit = {
     def loadAll(request: Request) =
-      persister.loadAll(resourceName) match {
-        case Right(bytes) => render.body(bytes).contentType(utf8Json).toFuture
+      persister.loadAll[T](resourceName) match {
+        case Right(seqTs) => render.body(Serialization.write(seqTs)).contentType(utf8Json).toFuture
         case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
       }
 

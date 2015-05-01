@@ -1,10 +1,17 @@
 package trivial.rest.persistence
 
-import trivial.rest.Failure
+import trivial.rest.{Restable, Failure}
 
 trait Persister {
+  
+  
+  
+  // TODO - CAS - 01/05/15 - URGENT - Require ClassTag[T], to force client to use a type parameter (also removes the need for the resource name param)
+  
+  
+  
   // TODO - CAS - 27/04/15 - Expand to allow saving T, or JSON AST, or both. Overload save?
-  def save(resourceName: String, content: String): Either[Failure, Array[Byte]]
-  def loadAll(resourceName: String): Either[Failure, Array[Byte]]
+  def save[T <: Restable[T]](resourceName: String, content: Seq[T])(implicit mf: scala.reflect.Manifest[T]): Either[Failure, Seq[T]]
+  def loadAll[T <: Restable[T]](resourceName: String)(implicit mf: scala.reflect.Manifest[T]): Either[Failure, Seq[T]]
   def nextSequenceNumber: Int
 } 

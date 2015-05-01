@@ -8,4 +8,5 @@ object TestDirectories {
   private val base = System.currentTimeMillis
   private val suffix = new AtomicInteger(1)
   def nextTestDir = Directory(s"target/jofs/${base}-${suffix.incrementAndGet()}")
+  def cleanTestDirs() = Directory(s"target/jofs").deleteRecursively()
 }
