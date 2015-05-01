@@ -11,6 +11,7 @@ import trivial.rest.persistence.JsonOnFileSystem
 import scala.reflect.io.Directory
 
 class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
+  // TODO - CAS - 01/05/15 - Verify it, but I don't think we need filters any more. REMOVE.
   val monkeysFilter = new SimpleFilter[FinagleRequest, FinagleResponse] {
     def apply(request: FinagleRequest, service: Service[FinagleRequest, FinagleResponse]) =
       service(request) map { response =>

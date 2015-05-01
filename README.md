@@ -2,5 +2,7 @@
 
 ### TODO ###
 
-* Don't getAll (off disk for JsonOnFileSystem) and append the latest items to it. Instead,
-  split incoming sequences into multiple writes.
+* Tidy everything that currently exists
+* Make the tests pass; use Foo to get basic CRUD working.
+* Add support for BigDecimal serialisation, so Vector works
+* Add support for deserialising other resources, so that Spaceship works
