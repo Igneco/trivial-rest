@@ -2,8 +2,8 @@
 
 ### TODO ###
 
-* Tidy everything that currently exists
 * Make the tests pass; use Foo to get basic CRUD working.
+* Tidy everything that currently exists
 * Add support for BigDecimal serialisation, so Vector works
 * Add support for deserialising other resources, so that Spaceship works
 * Abstract out the controller, so we can use other web frameworks

@@ -1,10 +1,10 @@
 package trivial.rest.persistence
 
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
-import trivial.rest.{Failure, Foo}
+import trivial.rest.Foo
 import trivial.rest.TestDirectories._
 
-import scala.reflect.io.{File, Path, Directory}
+import scala.reflect.io.{Directory, File}
 
 class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
 
@@ -12,8 +12,8 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
   override protected def afterAll()  = beforeAll()
 
   "TODO - Meets the PersisterContract terms" in {
-//    new PersisterContract(new JsonOnFileSystem("target/test"))
-    fail("train time")
+    // new PersisterContract(new JsonOnFileSystem("target/test"))
+    pending
   }
   
   "We can loadAll when the data file exists but is empty" in {

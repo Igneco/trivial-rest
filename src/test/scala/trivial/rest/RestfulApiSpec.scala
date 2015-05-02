@@ -27,10 +27,9 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
     validateJsonResponse(app, "/", """["spaceship","vector"]""")
   }
 
-  // TODO - CAS - 01/05/15 - Split this into two tests:
-  //      (1) We can do a GetAll
-  //      (2) Resources can reference other resources, and these will be de/serialised correctly
-  "Registering a resource type as a GetAll allows bulk download" in {
+  // TODO - CAS - 02/05/15 - ONLINE - download Mockito
+  // TODO - CAS - 02/05/15 - Mock the Persister to have the relevant data
+  "TODO - Registering a resource type as a GetAll allows bulk download" in {
     val controllerWithRest = new Controller {
       new Rest(this, "/", new JsonOnFileSystem(Directory("src/test/resources")))
         .resource[Spaceship](GetAll)
@@ -43,6 +42,10 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
                                                    |{"id": "3", "name": "Sloth", "personnel": 1, "vector": "4"},
                                                    |{"id": "1", "name": "Gr€€d", "personnel": 5, "vector": "1"}
                                                    |]""".stripMargin)
+  }
+  
+  "TODO - Resources can reference other resources can be de-serialised" in {
+    pending
   }
 
   "We send back a 404 for Resource types we don't support" in {
@@ -111,6 +114,14 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
 
     response.code must equal(405)
     response.body must equal( """Method not allowed: POST. Methods supported by /spaceship are: GET all""")
+  }
+
+  "TODO - There is a way to migrate stucture changes" in {
+    pending
+  }
+
+  "TODO - There is a way to pre-populate resources, so they are not empty when they are first released" in {
+    pending
   }
 
   // TODO - CAS - 27/04/15:
