@@ -18,19 +18,22 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
 
   "The root path provides a not-quite-hypertext list of supported resource types" in {
     val controllerWithRest = new Controller {
-      new Rest(this, "/", new JsonOnFileSystem(Directory("src/test/resources"))) {
+      new Rest(this, "/", mock[Persister]) {
         resource[Spaceship](GetAll)
         resource[Vector](GetAll)
       }
     }
     val app = MockApp(controllerWithRest)
 
-    validateJsonResponse(app, "/", """["spaceship","vector"]""")
+    val response = app.get("/")
+
+    response.body must equal("""["spaceship","vector"]""")
+    response.code must equal(200)
+    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
 
   "Registering a resource type as a GetAll allows bulk download" in {
     val persisterMock: Persister = mock[Persister]
-
     val controllerWithRest = new Controller {
       new Rest(this, "/", persisterMock)
         .resource[Foo](GetAll)
@@ -45,7 +48,11 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
 
     (persisterMock.loadAll[Foo](_: String)(_: Manifest[Foo])).expects("foo", *).returning(expectedData)
 
-    validateJsonResponse(app, "/foo.json", """[{"id":"1","bar":"bar"},{"id":"2","bar":"baz"},{"id":"3","bar":"bazaar"}]""")
+    val response = app.get("/foo")
+
+    response.body must equal("""[{"id":"1","bar":"bar"},{"id":"2","bar":"baz"},{"id":"3","bar":"bazaar"}]""")
+    response.code must equal(200)
+    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
 
   // TODO - CAS - 02/05/15 - Mock the persister in all tests
@@ -141,12 +148,4 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
       .resource[Vector](GetAll)
       .resource[Planet](GetAll, Post)
   })
-
-  private def validateJsonResponse(app: MockApp, path: String, expectedContents: String): Unit = {
-    val response = app.get(path)
-
-    response.body must equal(expectedContents)
-    response.code must equal(200)
-    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
-  }
 }
