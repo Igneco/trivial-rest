@@ -1,9 +1,7 @@
 package trivial.rest
 
 // TODO - CAS - 01/05/15 - find a way to know that T is a case class
-trait IdReceptive {
-  // override def withId(newId: String) = copy(id = Some(newId))
-}
+// See Travis Brown's answer at http://stackoverflow.com/questions/13446528/howto-model-named-parameters-in-method-invocations-with-scala-macros/13447439#13447439
 
 case class Foo(id: Option[String], bar: String) extends Restable[Foo] {
   override def withId(newId: String) = copy(id = Some(newId))
