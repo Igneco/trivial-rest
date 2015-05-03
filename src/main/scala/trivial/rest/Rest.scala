@@ -52,10 +52,12 @@ class Rest(controller: Controller, uriRoot: String, persister: Persister, valida
 
     type ControllerFunction = (String) => ((Request) => Future[ResponseBuilder]) => Unit
 
-    def unsupport(f: ControllerFunction, httpMethod: HttpMethod) =
+    // TODO - CAS - 03/05/15 - add a mapping from HttpMethod to controller function, as the first stage of abstracting the Controller
+    def unsupport(f: ControllerFunction, httpMethod: HttpMethod) = {
       f(pathTo(resourceName)) { request =>
         render.status(405).plain(unsupportedError(httpMethod)).toFuture
       }
+    }
 
     unsupportedMethods foreach {
       case GetAll => unsupport(get, GetAll)

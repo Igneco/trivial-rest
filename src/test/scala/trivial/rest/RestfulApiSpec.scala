@@ -28,7 +28,24 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
     validateJsonResponse(app, "/", """["spaceship","vector"]""")
   }
 
-  // TODO - CAS - 02/05/15 - Mock the Persister to have the relevant data
+  implicit def toBigDecimal(str: String): BigDecimal = BigDecimal(str)
+  val someVectors = Map(
+    "24" -> Vector(Some("24"), "79", "0.4"),
+    "2"  -> Vector(Some("2"), "7", "0.3"),
+    "4"  -> Vector(Some("4"), "9", "0.2"),
+    "1"  -> Vector(Some("1"), "8", "0.1")
+  )
+  
+  val someSpaceships = Seq(
+    Spaceship(Some("7"), "Enterprise", 150, someVectors("24")),
+    Spaceship(Some("5"), "Enterprise", 20, someVectors("2")),
+    Spaceship(Some("3"), "Enterprise", 1, someVectors("4")),
+    Spaceship(Some("1"), "Enterprise", 5, someVectors("1"))
+  )
+
+  // TODO - CAS - 03/05/15 - (1) Make this test pass for a bunch of Foo instances
+  // TODO - CAS - 03/05/15 - (2) Add a serialiser for each T that just writes the ID as a String. Make this configurable (some people will want everything.
+  // TODO - CAS - 02/05/15 - (3) Mock the persister in all tests
   "TODO - Registering a resource type as a GetAll allows bulk download" in {
     val persisterMock: Persister = mock[Persister]
     val controllerWithRest = new Controller {
@@ -37,12 +54,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
     }
     val app = MockApp(controllerWithRest)
     
-    implicit def toBigDecimal(str: String): BigDecimal = BigDecimal(str)
-
-    val vector: Vector = Vector(Some("24"), "79", "0.4")
-    (persisterMock.loadAll[Spaceship]  (_: String)(_: Manifest[Spaceship])).expects("spaceship", *).returning(Right(Seq(
-      Spaceship(Some("1"), "Enterprise", 150, vector)
-    )))
+    (persisterMock.loadAll[Spaceship]  (_: String)(_: Manifest[Spaceship])).expects("spaceship", *).returning(Right(someSpaceships))
 
     validateJsonResponse(app, "/spaceship.json", """[
                                                    |{"id": "7", "name": "Enterprise", "personnel": 150, "vector": "24"},
