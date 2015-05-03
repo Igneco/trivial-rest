@@ -4,13 +4,14 @@ import com.twitter.finagle.http.MediaType
 import com.twitter.finatra.Controller
 import com.twitter.finatra.test.MockApp
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 import trivial.rest.TestDirectories._
-import trivial.rest.persistence.JsonOnFileSystem
+import trivial.rest.persistence.{Persister, JsonOnFileSystem}
 
 import scala.reflect.io.Directory
 
-class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
+class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll with MockFactory {
 
   override protected def beforeAll() = cleanTestDirs()
   override protected def afterAll()  = beforeAll()
@@ -27,14 +28,21 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
     validateJsonResponse(app, "/", """["spaceship","vector"]""")
   }
 
-  // TODO - CAS - 02/05/15 - ONLINE - download Mockito
   // TODO - CAS - 02/05/15 - Mock the Persister to have the relevant data
   "TODO - Registering a resource type as a GetAll allows bulk download" in {
+    val persisterMock: Persister = mock[Persister]
     val controllerWithRest = new Controller {
-      new Rest(this, "/", new JsonOnFileSystem(Directory("src/test/resources")))
+      new Rest(this, "/", persisterMock)
         .resource[Spaceship](GetAll)
     }
     val app = MockApp(controllerWithRest)
+    
+    implicit def toBigDecimal(str: String): BigDecimal = BigDecimal(str)
+
+    val vector: Vector = Vector(Some("24"), "79", "0.4")
+    (persisterMock.loadAll[Spaceship]  (_: String)(_: Manifest[Spaceship])).expects("spaceship", *).returning(Right(Seq(
+      Spaceship(Some("1"), "Enterprise", 150, vector)
+    )))
 
     validateJsonResponse(app, "/spaceship.json", """[
                                                    |{"id": "7", "name": "Enterprise", "personnel": 150, "vector": "24"},
@@ -44,7 +52,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll {
                                                    |]""".stripMargin)
   }
   
-  "TODO - Resources can reference other resources can be de-serialised" in {
+  "TODO - Resources can reference other resources during deserialisation" in {
     pending
   }
 
