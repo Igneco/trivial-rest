@@ -12,7 +12,7 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
 
   implicit val formats: Formats = Serialization.formats(NoTypeHints)
 
-  override def loadAll[T <: Restable[T] with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T]): Either[Failure, Seq[T]] = {
+  override def loadAll[T <: Restable[T] with AnyRef : Manifest](resourceName: String): Either[Failure, Seq[T]] = {
     def deserialise(body: String): Either[Failure, Seq[T]] =
       try {
         Right(Serialization.read[Seq[T]](body))

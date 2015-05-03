@@ -12,6 +12,6 @@ trait Persister {
   
   // TODO - CAS - 27/04/15 - Expand to allow saving T, or JSON AST, or both. Overload save?
   def save[T <: Restable[T]](resourceName: String, content: Seq[T])(implicit mf: scala.reflect.Manifest[T]): Either[Failure, Seq[T]]
-  def loadAll[T <: Restable[T]](resourceName: String)(implicit mf: scala.reflect.Manifest[T]): Either[Failure, Seq[T]]
+  def loadAll[T <: Restable[T] : Manifest](resourceName: String): Either[Failure, Seq[T]]
   def nextSequenceNumber: Int
 } 
