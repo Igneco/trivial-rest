@@ -41,7 +41,7 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
     readFileToString(fileFor(resourceName).jfile)
 
   // TODO - CAS - 01/05/15 - Require a ClassTag, so that we can fail if no class is specfied, or tell the client what the class was that didn't load
-  override def save[T <: Restable[T]](resourceName: String, t: Seq[T])(implicit mf: scala.reflect.Manifest[T]): Either[Failure, Seq[T]] = {
+  override def save[T <: Restable[T] : Manifest](resourceName: String, t: Seq[T]): Either[Failure, Seq[T]] = {
     if (docRoot.notExists) docRoot.createDirectory()
     val targetFile = fileFor(resourceName)
     if (targetFile.notExists) targetFile.createFile()
