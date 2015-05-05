@@ -6,7 +6,7 @@ import trivial.rest.persistence.JsonOnFileSystem
 import scala.reflect.io.Directory
 
 class RestfulControllerExample extends Controller {
-  new Rest(this, "/", new JsonOnFileSystem(Directory("src/test/resources")))
+  new Rest("/", this, new JsonOnFileSystem(Directory("src/test/resources")))
     .resource[Spaceship](GetAll)
     .resource[Vector](GetAll)
     .resource[Planet](GetAll)

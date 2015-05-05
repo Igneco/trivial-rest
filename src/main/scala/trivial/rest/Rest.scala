@@ -6,6 +6,7 @@ import com.twitter.finatra.{ResponseBuilder, Controller, Request}
 import com.twitter.util.Future
 import org.json4s._
 import org.json4s.native.Serialization
+import trivial.rest.configuration.Config
 import trivial.rest.persistence.Persister
 import trivial.rest.validation.{RestRulesValidator, Validator}
 
@@ -22,7 +23,7 @@ import scala.reflect.ClassTag
  *   Case classes as a schema for JSON
  *   Multiple versions of a case class supported at the same time (Record, Record2, etc), based on cascading support
  */
-class Rest(controller: Controller, uriRoot: String, persister: Persister, validator: Validator = new RestRulesValidator) {
+class Rest(uriRoot: String, controller: Controller, persister: Persister, validator: Validator = new RestRulesValidator, preferences: Config = new Config) {
   private val resources = ListBuffer[String]()
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"
   

@@ -4,9 +4,11 @@ import com.twitter.finagle.http.MediaType
 import com.twitter.finatra.Controller
 import com.twitter.finatra.test.MockApp
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names
+import org.scalamock.CallHandler2
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 import trivial.rest.TestDirectories._
+import trivial.rest.configuration.Config
 import trivial.rest.persistence.{Persister, JsonOnFileSystem}
 
 import scala.reflect.io.Directory
@@ -18,7 +20,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
 
   "The root path provides a not-quite-hypertext list of supported resource types" in {
     val controllerWithRest = new Controller {
-      new Rest(this, "/", mock[Persister]) {
+      new Rest("/", this, mock[Persister]) {
         resource[Spaceship](GetAll)
         resource[Vector](GetAll)
       }
@@ -33,22 +35,15 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
   }
 
   "Registering a resource type as a GetAll allows bulk download" in {
-    val persisterMock: Persister = mock[Persister]
-    val controllerWithRest = new Controller {
-      new Rest(this, "/", persisterMock)
-        .resource[Foo](GetAll)
-    }
-    val app = MockApp(controllerWithRest)
+    val fixture = new RestApiFixture()
 
-    val expectedData = Right(Seq(
+    fixture.persister_expects_loadAll("foo", Right(Seq(
       Foo(Some("1"), "bar"),
       Foo(Some("2"), "baz"),
       Foo(Some("3"), "bazaar")
-    ))
+    )))
 
-    (persisterMock.loadAll[Foo](_: String)(_: Manifest[Foo])).expects("foo", *).returning(expectedData)
-
-    val response = app.get("/foo")
+    val response = fixture.app.get("/foo")
 
     response.body must equal("""[{"id":"1","bar":"bar"},{"id":"2","bar":"baz"},{"id":"3","bar":"bazaar"}]""")
     response.code must equal(200)
@@ -56,9 +51,35 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
   }
 
   // TODO - CAS - 02/05/15 - Mock the persister in all tests
+
   // TODO - CAS - 03/05/15 - Add a serialiser for each T that just writes the ID as a String. Make this configurable (some people will want the whole tree written)
+  "TODO - We can send responses in flat id-referenced form" in {
+    val fixture = new RestApiFixture(Config(flattenNestedResources = true))
+
+    implicit def toBigDecimal(str: String): BigDecimal = BigDecimal(str)
+    val vector = Vector(Some("24"), "79", "0.4")
+    val spaceship = Spaceship(Some("7"), "Enterprise", 150, vector)
+
+    fixture.persister_expects_loadAll("spaceship", Right(Seq(spaceship)))
+
+    val response = fixture.app.get("/spaceship")
+
+    response.body must equal("""[{"id":"1","name":"Enterprise","personnel":150,"bearing":"1"}]""")
+    response.code must equal(200)
+    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
+  }
+
+  "TODO - We can send responses in nested form" in {
+    pending
+  }
+
+  "We can accept input in nested or flat id-referenced form" in {
+    // post "[{"id":"7","name":"Enterprise","personnel":150,"bearing":{"id":"24","angle":79,"magnitude":0.4}}]"
+    // post "[{"id":"1","name":"Enterprise","personnel":150,"bearing":"1"}]"
+    pending
+  }
   
-  "TODO - Resources can reference other resources during deserialisation" in {
+  "We can choose to check that flat references to other resources exist, or to ignore them" in {
     pending
   }
 
@@ -143,9 +164,24 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
   // Caching
   
   def newUpApp = MockApp(new Controller {
-    new Rest(this, "/", new JsonOnFileSystem(nextTestDir))
+    new Rest("/", this, new JsonOnFileSystem(nextTestDir))
       .resource[Spaceship](GetAll)
       .resource[Vector](GetAll)
       .resource[Planet](GetAll, Post)
   })
+
+  class RestApiFixture(config: Config = Config()) {
+    val persisterMock: Persister = mock[Persister]
+    val controllerWithRest = new Controller {
+      new Rest("/", this, persisterMock)
+        .resource[Spaceship](GetAll)
+        .resource[Vector](GetAll)
+        .resource[Foo](GetAll)
+    }
+    val app = MockApp(controllerWithRest)
+
+    def persister_expects_loadAll[T <: Restable[T]](expectedParam: String, returns: Either[Failure, Seq[T]]) = {
+      (persisterMock.loadAll[T](_: String)(_: Manifest[T])).expects(expectedParam, *).returning(returns)
+    }
+  }
 }
