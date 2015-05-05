@@ -76,7 +76,7 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
     this
   }
   
-  def addPost[T <: Restable[T] with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T], formats: Formats): Unit = {
+  def addPost[T <: Restable[T] with AnyRef : Manifest](resourceName: String)(implicit formats: Formats): Unit = {
     // TODO - CAS - 01/05/15 - This and the copy in Persister -> put into a Serialiser dependency
     def deserialise(body: String): Either[Failure, Seq[T]] =
       try {
@@ -110,7 +110,7 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
-  def addGetAll[T <: Restable[T] with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T], formats: Formats): Unit = {
+  def addGetAll[T <: Restable[T] with AnyRef : Manifest](resourceName: String)(implicit formats: Formats): Unit = {
     def loadAll(request: Request) =
       persister.loadAll[T](resourceName) match {
         case Right(seqTs) => render.body(Serialization.write(seqTs)).contentType(utf8Json).toFuture
