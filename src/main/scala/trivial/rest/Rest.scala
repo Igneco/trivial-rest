@@ -126,4 +126,17 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
   get(uriRoot) { request =>
     render.body(serialiser.serialize(resources.sorted[String])).contentType(utf8Json).toFuture
   }
+
+  // TODO - CAS - 05/05/15 - Find out why getOrElse doesn't work, and change to that.
+  val errorHandler2: Option[(Request) => Future[ResponseBuilder]] = controller.errorHandler match {
+    case Some(handler) => Some(handler)
+    case None => Some(knownErrorsHandler)
+  }
+  controller.errorHandler = errorHandler2
+
+  def knownErrorsHandler: (Request) => Future[ResponseBuilder] = (request:Request) => request.error match {
+    case Some(e:com.twitter.finatra.UnsupportedMediaType) => render.status(415).plain("No handler for this media type found").toFuture
+    case Some(x) => render.status(500).plain(s"Finatra has trapped an exception:\n${x}").toFuture
+    case other => render.status(500).plain(s"Finatra has handled an exception, but the error is: $other").toFuture
+  }
 }
