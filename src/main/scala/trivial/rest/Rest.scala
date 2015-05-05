@@ -8,7 +8,7 @@ import org.json4s._
 import org.json4s.native.Serialization
 import trivial.rest.configuration.Config
 import trivial.rest.persistence.Persister
-import trivial.rest.serialisation.{SerialisationProvider, SerialiseOnly, Serially}
+import trivial.rest.serialisation.SerialiseOnly
 import trivial.rest.validation.{RestRulesValidator, Validator}
 
 import scala.collection.mutable
@@ -25,7 +25,7 @@ import scala.reflect.ClassTag
  *   Multiple versions of a case class supported at the same time (Record, Record2, etc), based on cascading support
  */
 class Rest(uriRoot: String, controller: Controller, persister: Persister, validator: Validator = new RestRulesValidator, config: Config = new Config) {
-  private val resourceToSerialiser = mutable.HashMap.empty[String, SerialiseOnly[_]]
+  private val resourceToSerialiser = mutable.Map.empty[String, SerialiseOnly[_]]
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"
   
   import controller._
@@ -41,11 +41,7 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
   def resource[T <: Restable[T] with AnyRef : ClassTag : Manifest](supportedMethods: HttpMethod*) = {
     lazy val resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
 
-    implicit val provider = new SerialisationProvider[T] {
-      override def identifier = _.id.getOrElse("")
-    }
-
-    resourceToSerialiser += (resourceName -> Serially.serialiserFor[T])
+    resourceToSerialiser += (resourceName -> SerialiseOnly[T](_.id.getOrElse("")))
 
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)

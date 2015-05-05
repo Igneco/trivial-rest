@@ -7,17 +7,11 @@ import org.json4s.reflect.TypeInfo
 import scala.reflect.ClassTag
 
 case class SerialiseOnly[T: ClassTag](serialise: T ⇒ String) extends Serializer[T] {
-  def deserialize(implicit format: Formats): PartialFunction[(TypeInfo, JValue), T] = PartialFunction.empty[(TypeInfo, JValue), T]
+
+  def deserialize(implicit format: Formats): PartialFunction[(TypeInfo, JValue), T] =
+    PartialFunction.empty[(TypeInfo, JValue), T]
 
   def serialize(implicit format: Formats): PartialFunction[Any, JValue] = {
     case x: T ⇒ JString(serialise(x))
   }
-}
-
-object Serially {
-  def serialiserFor[T: ClassTag](implicit p: SerialisationProvider[T]) = SerialiseOnly[T](p.identifier)
-}
-
-trait SerialisationProvider[T] {
-  def identifier: T => String
 }
