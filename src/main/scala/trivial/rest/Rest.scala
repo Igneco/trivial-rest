@@ -8,6 +8,7 @@ import org.json4s._
 import org.json4s.native.Serialization
 import trivial.rest.configuration.Config
 import trivial.rest.persistence.Persister
+import trivial.rest.serialisation.{SerialiseOnly, SerialisationProvider, Serially}
 import trivial.rest.validation.{RestRulesValidator, Validator}
 
 import scala.collection.mutable.ListBuffer
@@ -25,22 +26,31 @@ import scala.reflect.ClassTag
  */
 class Rest(uriRoot: String, controller: Controller, persister: Persister, validator: Validator = new RestRulesValidator, config: Config = new Config) {
   private val resources = ListBuffer[String]()
+  private val serialisers = ListBuffer[(String, SerialiseOnly[_])]()
+  private lazy val resourceSerialisers = Map(serialisers.toSeq:_*)
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"
   
   import controller._
   
   val serialiser = DefaultJacksonJsonSerializer
+  
+  def formatsFor(resourceName: String) =
+    if (config.flattenNestedResources) {
+      Serialization.formats(NoTypeHints) ++ (resourceSerialisers - resourceName).values
+    } else {
+      Serialization.formats(NoTypeHints)
+    }
 
-  def resource[T <: Restable[T] with AnyRef : ClassTag](supportedMethods: HttpMethod*)(implicit mf: scala.reflect.Manifest[T]) = {
+  def resource[T <: Restable[T] with AnyRef : ClassTag : Manifest](supportedMethods: HttpMethod*) = {
     lazy val resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
 
     resources.append(resourceName)
 
-    implicit val formats: Formats = if (config.flattenNestedResources) {
-      Serialization.formats(NoTypeHints)
-    } else {
-      Serialization.formats(NoTypeHints)
+    implicit val provider = new SerialisationProvider[T] {
+      override def identifier = _.id.getOrElse("")
     }
+
+    serialisers.append(resourceName -> Serially.serialiserFor[T])
 
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
@@ -75,11 +85,12 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
     
     this
   }
-  
-  def addPost[T <: Restable[T] with AnyRef : Manifest](resourceName: String)(implicit formats: Formats): Unit = {
+
+  def addPost[T <: Restable[T] with AnyRef : Manifest](resourceName: String): Unit = {
     // TODO - CAS - 01/05/15 - This and the copy in Persister -> put into a Serialiser dependency
     def deserialise(body: String): Either[Failure, Seq[T]] =
       try {
+        implicit val formats: Formats = formatsFor(resourceName)
         Right(Serialization.read[Seq[T]](body))
       } catch {
         case e: Exception => Left(Failure(500, s"Failed to deserialise into $resourceName, due to: $e"))
@@ -89,6 +100,8 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
       // TODO - CAS - 27/04/15 - Yes, this will become a for-comp, but only when I have worked out all the bits
 
       val persisted = try {
+        implicit val formats: Formats = formatsFor(resourceName)
+        
         val deserialisedT: Either[Failure, Seq[T]] = deserialise(request.getContentString())
         val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
         val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(s"${persister.nextSequenceNumber}")))
@@ -110,12 +123,15 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
-  def addGetAll[T <: Restable[T] with AnyRef : Manifest](resourceName: String)(implicit formats: Formats): Unit = {
-    def loadAll(request: Request) =
+  def addGetAll[T <: Restable[T] with AnyRef : Manifest](resourceName: String): Unit = {
+    def loadAll(request: Request) = {
+      implicit val formats: Formats = formatsFor(resourceName)
+
       persister.loadAll[T](resourceName) match {
         case Right(seqTs) => render.body(Serialization.write(seqTs)).contentType(utf8Json).toFuture
         case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
       }
+    }
 
     // TODO - CAS - 20/04/15 - Remove support for the suffixed URI
     get(s"${uriRoot.stripSuffix("/")}/$resourceName.json") { loadAll }

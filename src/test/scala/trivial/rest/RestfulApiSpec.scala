@@ -49,18 +49,19 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
 
     implicit def toBigDecimal(str: String): BigDecimal = BigDecimal(str)
     val vector = Vector(Some("24"), "79", "0.4")
-    val spaceship = Spaceship(Some("7"), "Enterprise", 150, vector)
+    val spaceship = Spaceship(Some("1"), "Enterprise", 150, vector)
 
     fixture.persister_expects_loadAll("spaceship", Right(Seq(spaceship)))
 
     val response = fixture.app.get("/spaceship")
 
-    response.body must equal("""[{"id":"1","name":"Enterprise","personnel":150,"bearing":"1"}]""")
+    response.body must equal("""[{"id":"1","name":"Enterprise","personnel":150,"bearing":"24"}]""")
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
 
   "TODO - We can send responses in nested form" in {
+    val fixture = new RestApiFixture(Config(flattenNestedResources = false))
     pending
   }
 
