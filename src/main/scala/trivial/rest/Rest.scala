@@ -23,14 +23,12 @@ import scala.reflect.ClassTag
  *   Case classes as a schema for JSON
  *   Multiple versions of a case class supported at the same time (Record, Record2, etc), based on cascading support
  */
-class Rest(uriRoot: String, controller: Controller, persister: Persister, validator: Validator = new RestRulesValidator, preferences: Config = new Config) {
+class Rest(uriRoot: String, controller: Controller, persister: Persister, validator: Validator = new RestRulesValidator, config: Config = new Config) {
   private val resources = ListBuffer[String]()
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"
   
   import controller._
   
-  implicit val formats: Formats = Serialization.formats(NoTypeHints)
-
   val serialiser = DefaultJacksonJsonSerializer
 
   def resource[T <: Restable[T] with AnyRef : ClassTag](supportedMethods: HttpMethod*)(implicit mf: scala.reflect.Manifest[T]) = {
@@ -38,9 +36,15 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
 
     resources.append(resourceName)
 
+    implicit val formats: Formats = if (config.flattenNestedResources) {
+      Serialization.formats(NoTypeHints)
+    } else {
+      Serialization.formats(NoTypeHints)
+    }
+
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
-      case Post => addPost(resourceName)(mf)
+      case Post => addPost(resourceName)
       // case Get => /:resourceName/:id
       case x => throw new UnsupportedOperationException(s"I haven't built support for $x yet")
     }
@@ -72,7 +76,7 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
     this
   }
   
-  def addPost[T <: Restable[T] with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T]): Unit = {
+  def addPost[T <: Restable[T] with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T], formats: Formats): Unit = {
     // TODO - CAS - 01/05/15 - This and the copy in Persister -> put into a Serialiser dependency
     def deserialise(body: String): Either[Failure, Seq[T]] =
       try {
@@ -106,7 +110,7 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
-  def addGetAll[T <: Restable[T] with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T]): Unit = {
+  def addGetAll[T <: Restable[T] with AnyRef](resourceName: String)(implicit mf: scala.reflect.Manifest[T], formats: Formats): Unit = {
     def loadAll(request: Request) =
       persister.loadAll[T](resourceName) match {
         case Right(seqTs) => render.body(Serialization.write(seqTs)).contentType(utf8Json).toFuture
