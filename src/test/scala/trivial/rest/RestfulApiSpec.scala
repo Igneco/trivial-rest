@@ -19,17 +19,11 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
   override protected def afterAll()  = beforeAll()
 
   "The root path provides a not-quite-hypertext list of supported resource types" in {
-    val controllerWithRest = new Controller {
-      new Rest("/", this, mock[Persister]) {
-        resource[Spaceship](GetAll)
-        resource[Vector](GetAll)
-      }
-    }
-    val app = MockApp(controllerWithRest)
+    val fixture = new RestApiFixture()
 
-    val response = app.get("/")
+    val response = fixture.app.get("/")
 
-    response.body must equal("""["spaceship","vector"]""")
+    response.body must equal("""["foo","spaceship","vector"]""")
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
