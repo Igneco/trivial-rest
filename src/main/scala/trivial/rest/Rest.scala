@@ -2,16 +2,16 @@ package trivial.rest
 
 import com.twitter.finagle.http.MediaType
 import com.twitter.finatra.serialization.DefaultJacksonJsonSerializer
-import com.twitter.finatra.{ResponseBuilder, Controller, Request}
+import com.twitter.finatra.{Controller, Request, ResponseBuilder}
 import com.twitter.util.Future
 import org.json4s._
 import org.json4s.native.Serialization
 import trivial.rest.configuration.Config
 import trivial.rest.persistence.Persister
-import trivial.rest.serialisation.{SerialiseOnly, SerialisationProvider, Serially}
+import trivial.rest.serialisation.{SerialisationProvider, SerialiseOnly, Serially}
 import trivial.rest.validation.{RestRulesValidator, Validator}
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 /**
@@ -25,9 +25,7 @@ import scala.reflect.ClassTag
  *   Multiple versions of a case class supported at the same time (Record, Record2, etc), based on cascading support
  */
 class Rest(uriRoot: String, controller: Controller, persister: Persister, validator: Validator = new RestRulesValidator, config: Config = new Config) {
-  private val resources = ListBuffer[String]()
-  private val serialisers = ListBuffer[(String, SerialiseOnly[_])]()
-  private lazy val resourceSerialisers = Map(serialisers.toSeq:_*)
+  private val resourceToSerialiser = mutable.HashMap.empty[String, SerialiseOnly[_]]
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"
   
   import controller._
@@ -35,22 +33,19 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
   val serialiser = DefaultJacksonJsonSerializer
   
   def formatsFor(resourceName: String) =
-    if (config.flattenNestedResources) {
-      Serialization.formats(NoTypeHints) ++ (resourceSerialisers - resourceName).values
-    } else {
+    if (config.flattenNestedResources)
+      Serialization.formats(NoTypeHints) ++ (resourceToSerialiser - resourceName).values
+    else
       Serialization.formats(NoTypeHints)
-    }
 
   def resource[T <: Restable[T] with AnyRef : ClassTag : Manifest](supportedMethods: HttpMethod*) = {
     lazy val resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
-
-    resources.append(resourceName)
 
     implicit val provider = new SerialisationProvider[T] {
       override def identifier = _.id.getOrElse("")
     }
 
-    serialisers.append(resourceName -> Serially.serialiserFor[T])
+    resourceToSerialiser += (resourceName -> Serially.serialiserFor[T])
 
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
@@ -144,7 +139,7 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
   }
 
   get(uriRoot) { request =>
-    render.body(serialiser.serialize(resources.sorted[String])).contentType(utf8Json).toFuture
+    render.body(serialiser.serialize(resourceToSerialiser.keySet.toSeq.sorted[String])).contentType(utf8Json).toFuture
   }
 
   controller.errorHandler = controller.errorHandler match {
