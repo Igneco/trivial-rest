@@ -22,7 +22,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
 
     val response = fixture.app.get("/")
 
-    response.body must equal("""["foo","planet","spaceship","vector"]""")
+    response.body must equal("""["currency","exchangerate","foo","planet","spaceship","vector"]""")
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
@@ -43,8 +43,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
 
-  // TODO - CAS - 03/05/15 - Add a serialiser for each T that just writes the ID as a String. Make this configurable (some people will want the whole tree written)
-  "TODO - We can send responses in flat id-referenced form" in {
+  "We can send responses in flat id-referenced form" in {
     val fixture = new RestApiFixture(Config(flattenNestedResources = true))
 
     implicit def toBigDecimal(str: String): BigDecimal = BigDecimal(str)
@@ -73,6 +72,37 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
   
   "We can choose to check that flat references to other resources exist, or to ignore them" in {
     pending
+  }
+  
+  "We can serialise a resource which embeds another resource" in {
+    val fixture = new RestApiFixture()
+
+    fixture.persister_expects_loadAll("exchangerate", Right(Seq(
+      ExchangeRate(Some("1"), BigDecimal("33.3"), Currency(Some("22"), "GBP", "£"))
+    )))
+
+    val response = fixture.app.get("/exchangerate")
+
+    response.body must equal("""[{"id":"1","rate":33.3,"currency":"22"}]""")
+    response.code must equal(200)
+    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
+  }
+
+  "We can deserialise characters such as € and £ into non-escaped unicode Strings" in {
+    pending
+    val fixture = new RestApiFixture()
+
+    fixture.persister_expects_loadAll("currency", Right(Seq(
+      Currency(Some("1"), "EUR", "€"),
+      Currency(Some("2"), "GBP", "£"),
+      Currency(Some("3"), "USD", "$")
+    )))
+
+    val response = fixture.app.get("/currency")
+
+    response.body must equal("""[{"id":"1","isoName":"EUR","symbol":"#"},{"id":"2","isoName":"GBP","symbol":"£"},{"id":"3","isoName":"USD","symbol":"$"}]""")
+    response.code must equal(200)
+    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
 
   "We send back a 404 for Resource types we don't support" in {
@@ -165,6 +195,8 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
         .resource[Vector](GetAll)
         .resource[Planet](GetAll, Post)
         .resource[Foo](GetAll)
+        .resource[Currency](GetAll)
+        .resource[ExchangeRate](GetAll)
     }
     val app = MockApp(controllerWithRest)
 

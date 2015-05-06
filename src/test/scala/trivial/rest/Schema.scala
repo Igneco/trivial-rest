@@ -7,6 +7,15 @@ case class Foo(id: Option[String], bar: String) extends Restable[Foo] {
   override def withId(newId: String) = copy(id = Some(newId))
 }
 
+case class Currency(id: Option[String], isoName: String, symbol: String) extends Restable[Currency] {
+  override def withId(newId: String) = copy(id = Some(newId))
+}
+
+// TODO - CAS - 06/05/15 - Needs a date -> Joda time de/serialisers
+case class ExchangeRate(id: Option[String], rate: BigDecimal, currency: Currency) extends Restable[ExchangeRate] {
+  override def withId(newId: String) = copy(id = Some(newId))
+}
+
 case class Spaceship(id: Option[String], name: String, personnel: Int, bearing: Vector) extends Restable[Spaceship] {
   override def withId(newId: String) = copy(id = Some(newId))
 }
