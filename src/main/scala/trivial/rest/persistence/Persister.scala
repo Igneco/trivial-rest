@@ -1,7 +1,7 @@
 package trivial.rest.persistence
 
 import org.json4s.Formats
-import trivial.rest.{Restable, Failure}
+import trivial.rest.{Resource, Failure}
 
 trait Persister {
   
@@ -12,7 +12,7 @@ trait Persister {
   
   
   // TODO - CAS - 27/04/15 - Expand to allow saving T, or JSON AST, or both. Overload save?
-  def save[T <: Restable[T] : Manifest](resourceName: String, content: Seq[T])(implicit formats: Formats): Either[Failure, Seq[T]]
-  def loadAll[T <: Restable[T] : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]]
+  def save[T <: Resource[T] : Manifest](resourceName: String, content: Seq[T])(implicit formats: Formats): Either[Failure, Seq[T]]
+  def loadAll[T <: Resource[T] : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]]
   def nextSequenceNumber: Int
 } 

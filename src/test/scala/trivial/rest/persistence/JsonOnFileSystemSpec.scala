@@ -4,7 +4,7 @@ import org.json4s.native.Serialization
 import org.json4s.{Formats, NoTypeHints}
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 import trivial.rest.TestDirectories._
-import trivial.rest.serialisation.SerialiseOnly
+import trivial.rest.serialisation.Serialiser
 import trivial.rest.{Currency, ExchangeRate, Foo}
 
 import scala.reflect.io.{Directory, File}
@@ -55,8 +55,8 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
     )
 
     implicit val formats = Serialization.formats(NoTypeHints) +
-      SerialiseOnly[ExchangeRate](_.id.getOrElse(""), _ => None) +
-      SerialiseOnly[Currency](_.id.getOrElse(""), _ => None)
+      Serialiser[ExchangeRate](_.id.getOrElse(""), _ => None) +
+      Serialiser[Currency](_.id.getOrElse(""), _ => None)
 
     new JsonOnFileSystem(docRoot).loadAll[ExchangeRate]("exchangerate") mustEqual Right(expected)
   }

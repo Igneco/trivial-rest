@@ -217,14 +217,14 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
     }
     val app = MockApp(controllerWithRest)
 
-    def persister_expects_loadAll[T <: Restable[T]](expectedParam: String, returns: Either[Failure, Seq[T]]) = {
+    def persister_expects_loadAll[T <: Resource[T]](expectedParam: String, returns: Either[Failure, Seq[T]]) = {
       (persisterMock.loadAll[T](_: String)(_: Manifest[T], _: Formats)).expects(expectedParam, *, *).returning(returns)
     }
 
     val sequence = new AtomicInteger(0)
     def persister_expects_nextSequenceNumber(highest: Int) = (persisterMock.nextSequenceNumber _).expects().onCall(() => sequence.incrementAndGet()).repeat(highest)
 
-    def persister_expects_save[T <: Restable[T]](expectedResource: String, expectedSeq: Seq[T]) = {
+    def persister_expects_save[T <: Resource[T]](expectedResource: String, expectedSeq: Seq[T]) = {
       (persisterMock.save[T](_: String, _: Seq[T])(_: Manifest[T], _: Formats)).expects(expectedResource, expectedSeq, *, *).returning(Right(expectedSeq))
     }
   }

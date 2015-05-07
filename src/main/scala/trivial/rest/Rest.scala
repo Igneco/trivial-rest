@@ -8,7 +8,7 @@ import org.json4s._
 import org.json4s.native.Serialization
 import trivial.rest.configuration.Config
 import trivial.rest.persistence.Persister
-import trivial.rest.serialisation.SerialiseOnly
+import trivial.rest.serialisation.Serialiser
 import trivial.rest.validation.{RestRulesValidator, Validator}
 
 import scala.collection.mutable
@@ -26,7 +26,7 @@ import scala.reflect.ClassTag
  *   Multiple versions of a case class supported at the same time (Record, Record2, etc), based on cascading support
  */
 class Rest(uriRoot: String, controller: Controller, persister: Persister, validator: Validator = new RestRulesValidator, config: Config = new Config) {
-  private val resourceToSerialiser = mutable.Map.empty[String, SerialiseOnly[_]]
+  private val resourceToSerialiser = mutable.Map.empty[String, Serialiser[_]]
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"
   
   import controller._
@@ -39,14 +39,14 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
     else
       Serialization.formats(NoTypeHints)
 
-  def resource[T <: Restable[T] with AnyRef : ClassTag : Manifest](supportedMethods: HttpMethod*) = {
+  def resource[T <: Resource[T] with AnyRef : ClassTag : Manifest](supportedMethods: HttpMethod*) = {
     lazy val resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
     implicit val formats: Formats = formatsFor(resourceName)
 
-    resourceToSerialiser += (resourceName -> SerialiseOnly[T](_.id.getOrElse(""), id => hunt(resourceName, id)))
+    resourceToSerialiser += (resourceName -> Serialiser[T](_.id.getOrElse(""), id => hunt(resourceName, id)))
 
     // TODO - CAS - 07/05/15 - Switch this to persister.getById, once we have /get/:id enabled
-    def hunt[T <: Restable[T] : Manifest](resourceName: String, id: String): Option[T] = persister.loadAll[T](resourceName) match {
+    def hunt[T <: Resource[T] : Manifest](resourceName: String, id: String): Option[T] = persister.loadAll[T](resourceName) match {
       case Right(seqTs) => seqTs.find(_.id == Some(id))
       case Left(failure) => None
     }
@@ -90,7 +90,7 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
     case None => (causes :+ e.getMessage).mkString("\n") + "\n" + e.getStackTraceString
   }
 
-  def addPost[T <: Restable[T] with AnyRef : Manifest](resourceName: String): Unit = {
+  def addPost[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
     // TODO - CAS - 01/05/15 - This and the copy in Persister -> put into a Serialiser dependency
     def deserialise(body: String): Either[Failure, Seq[T]] =
       try {
@@ -128,13 +128,13 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
-  def addGetAll[T <: Restable[T] with AnyRef : Manifest](resourceName: String): Unit = {
+  def addGetAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
     // TODO - CAS - 20/04/15 - Remove support for the suffixed URI
     get(s"${uriRoot.stripSuffix("/")}/$resourceName.json") { request => loadAll(resourceName) }
     get(pathTo(resourceName)) { request => loadAll(resourceName) }
   }
 
-  def loadAll[T <: Restable[T] with AnyRef : Manifest](resourceName: String) = {
+  def loadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String) = {
     implicit val formats: Formats = formatsFor(resourceName)
 
     persister.loadAll[T](resourceName) match {

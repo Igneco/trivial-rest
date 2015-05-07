@@ -1,16 +1,15 @@
 package trivial.rest.persistence
 
 import org.apache.commons.io.FileUtils._
-import org.json4s.{JValue, NoTypeHints, Formats}
-import org.json4s.native.{JsonParser, Serialization}
-import trivial.rest.{Restable, Failure}
+import org.json4s.Formats
+import org.json4s.native.Serialization
+import trivial.rest.{Failure, Resource}
 
-import scala.reflect.ClassTag
-import scala.reflect.io.{File, Directory}
+import scala.reflect.io.{Directory, File}
 
 class JsonOnFileSystem(docRoot: Directory) extends Persister {
 
-  override def loadAll[T <: Restable[T] with AnyRef : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]] = {
+  override def loadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]] = {
     def deserialise(body: String): Either[Failure, Seq[T]] =
       try {
         Right(Serialization.read[Seq[T]](body))
@@ -45,11 +44,11 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
       Right(Seq.empty)
   }
 
-  private def fromDisk[T <: Restable[T]](resourceName: String): String =
+  private def fromDisk[T <: Resource[T]](resourceName: String): String =
     readFileToString(fileFor(resourceName).jfile)
 
   // TODO - CAS - 01/05/15 - Require a ClassTag, so that we can fail if no class is specfied, or tell the client what the class was that didn't load
-  override def save[T <: Restable[T] : Manifest](resourceName: String, t: Seq[T])(implicit formats: Formats): Either[Failure, Seq[T]] = {
+  override def save[T <: Resource[T] : Manifest](resourceName: String, t: Seq[T])(implicit formats: Formats): Either[Failure, Seq[T]] = {
     if (docRoot.notExists) docRoot.createDirectory()
     val targetFile = fileFor(resourceName)
     if (targetFile.notExists) targetFile.createFile()
