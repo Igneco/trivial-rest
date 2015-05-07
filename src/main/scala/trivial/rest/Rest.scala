@@ -8,7 +8,7 @@ import org.json4s._
 import org.json4s.native.Serialization
 import trivial.rest.configuration.Config
 import trivial.rest.persistence.Persister
-import trivial.rest.serialisation.{SerialiserExceptionHelper, Serialiser}
+import trivial.rest.serialisation.{SerialiserExceptionHelper, ResourceSerialiser}
 import trivial.rest.validation.{RestRulesValidator, Validator}
 
 import scala.collection.mutable
@@ -26,7 +26,7 @@ import scala.reflect.ClassTag
  *   Multiple versions of a case class supported at the same time (Record, Record2, etc), based on cascading support
  */
 class Rest(uriRoot: String, controller: Controller, persister: Persister, validator: Validator = new RestRulesValidator, config: Config = new Config) {
-  private val resourceToSerialiser = mutable.Map.empty[String, Serialiser[_]]
+  private val resourceToSerialiser = mutable.Map.empty[String, ResourceSerialiser[_]]
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"
   
   import controller._
@@ -43,7 +43,7 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
     // TODO - CAS - 07/05/15 - Needs to be pushed down to a callback, otherwise not all formats will be loaded
     implicit val formats: Formats = formatsFor(resourceName)
 
-    resourceToSerialiser += (resourceName -> Serialiser[T](_.id.getOrElse(""), id => hunt(resourceName, id)))
+    resourceToSerialiser += (resourceName -> ResourceSerialiser[T](_.id.getOrElse(""), id => hunt(resourceName, id)))
 
     // TODO - CAS - 07/05/15 - Switch this to persister.getById, once we have /get/:id enabled
     def hunt[T <: Resource[T] : Manifest](resourceName: String, id: String): Option[T] = persister.loadAll[T](resourceName) match {

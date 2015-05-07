@@ -4,7 +4,7 @@ import org.json4s.native.Serialization
 import org.json4s.{Formats, NoTypeHints}
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 import trivial.rest.TestDirectories._
-import trivial.rest.serialisation.Serialiser
+import trivial.rest.serialisation.ResourceSerialiser
 import trivial.rest._
 
 import scala.reflect.io.{Directory, File}
@@ -52,7 +52,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
     val jofs = new JsonOnFileSystem(docRoot)
 
     implicit def formats = Serialization.formats(NoTypeHints) +
-      Serialiser[Currency](_.id.getOrElse(""), id => hunt[Currency]("currency", jofs, id))
+      ResourceSerialiser[Currency](_.id.getOrElse(""), id => hunt[Currency]("currency", jofs, id))
 
     def hunt[T <: Resource[T] : Manifest](resourceName: String, jofs: JsonOnFileSystem, id: String): Option[T] =
       jofs.loadAll[T](resourceName) match {

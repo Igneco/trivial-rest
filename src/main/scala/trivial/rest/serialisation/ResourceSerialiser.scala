@@ -7,7 +7,7 @@ import org.json4s.reflect.TypeInfo
 import scala.reflect.ClassTag
 
 // TODO - CAS - 06/05/15 - Just import Mange? Or copy verbatim, so there are fewer dependencies?
-case class Serialiser[T: ClassTag](serialise: T ⇒ String, deserialise: String ⇒ Option[T]) extends Serializer[T] {
+case class ResourceSerialiser[T: ClassTag](serialise: T ⇒ String, deserialise: String ⇒ Option[T]) extends Serializer[T] {
   private val TheClass       = implicitly[ClassTag[T]].runtimeClass
   private val serialiserName = TheClass.getSimpleName
 
