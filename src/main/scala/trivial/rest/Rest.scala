@@ -28,9 +28,9 @@ import scala.reflect.ClassTag
 class Rest(uriRoot: String, controller: Controller, persister: Persister, validator: Validator = new RestRulesValidator, config: Config = new Config) {
   private val resourceToSerialiser = mutable.Map.empty[String, ResourceSerialiser[_]]
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"
-  
+
   import controller._
-  
+
   def formatsFor(resourceName: String) =
     if (config.flattenNestedResources)
       Serialization.formats(NoTypeHints) ++ (resourceToSerialiser - resourceName).values
@@ -39,7 +39,7 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
 
   def resource[T <: Resource[T] with AnyRef : ClassTag : Manifest](supportedMethods: HttpMethod*) = {
     lazy val resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
-    
+
     // TODO - CAS - 07/05/15 - Needs to be pushed down to a callback, otherwise not all formats will be loaded
     implicit val formats: Formats = formatsFor(resourceName)
 
