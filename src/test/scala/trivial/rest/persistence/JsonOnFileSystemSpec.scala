@@ -42,11 +42,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
   }
   
   "We can deserialise (load and inflate) resources which contain ID references to other resources" in {
-    val docRoot = Directory(nextTestDir)
-    docRoot.createDirectory()
-    val resourcesDir = Directory("src/test/resources")
-    FileSystem.copy(File(resourcesDir / "currency.json"), File(docRoot / "currency.json"))
-    FileSystem.copy(File(resourcesDir / "exchangerate.json"), File(docRoot / "exchangerate.json"))
+    val docRoot = provisionedTestDir
 
     val expected = Seq(
       ExchangeRate(Some("1"), 33.3, Currency(Some("2"), "GBP", "£")),

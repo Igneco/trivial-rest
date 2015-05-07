@@ -8,12 +8,13 @@ import java.nio.file.{Files, Path, Paths}
 
 import scala.reflect.io.{Directory, File}
 
-// Copied from https://github.com/alltonp/little/blob/master/src/main/scala/im/mange/little/file/Filepath.scala
+// Copied from https://github.com/alltonp/little/ (and then mangled somewhat)
 object FileSystem {
+  def save(content: String, file: File)   = write(Paths.get(file.path), content.getBytes(UTF_8), CREATE, WRITE, TRUNCATE_EXISTING)
   def save(content: String, path: Path)   = write(path, content.getBytes(UTF_8), CREATE, WRITE, TRUNCATE_EXISTING)
   def append(content: String, path: Path) = write(path, content.getBytes(UTF_8), CREATE, WRITE, APPEND)
 
-  // TODO - CAS - 06/05/15 - De-boilerplagerise
+  // TODO - CAS - 06/05/15 - De-boilerplagerise with implicit loveliness converting File/Dir to Path
   def move(source: Path, target: Path): Path = Files.move(source, target, ATOMIC_MOVE)
   def move(source: File, target: File): Path = move(Paths.get(source.path), Paths.get(target.path))
   def move(source: Directory, target: Directory): Path = move(Paths.get(source.path), Paths.get(target.path))

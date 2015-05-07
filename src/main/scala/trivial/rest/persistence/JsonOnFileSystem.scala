@@ -86,7 +86,7 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
   def fileFor(resourceName: String): File = File(docRoot / s"$resourceName.json")
 
   def hasLocalFile(file: File): Boolean = {
-    if(file.toString().contains(".."))     return false
+    if(file.toString().contains(".."))   return false
     if(!file.exists || file.isDirectory) return false
     if(!file.canRead)                    return false
 

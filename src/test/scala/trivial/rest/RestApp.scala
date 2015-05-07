@@ -12,7 +12,7 @@ class RestfulControllerExample(persister: Persister) extends Controller {
     .resource[Planet](GetAll, Post)
     .resource[Foo](GetAll)
     .resource[Currency](GetAll)
-    .resource[ExchangeRate](GetAll)
+    .resource[ExchangeRate](GetAll, Post)
 }
 
 object RestApp extends FinatraServer {
