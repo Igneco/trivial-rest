@@ -22,6 +22,7 @@ import scala.reflect.ClassTag
  * 
  * Concepts to explore:
  *   Case classes as a schema for JSON
+ *   Postel's Law / The Robustness Principle - http://en.wikipedia.org/wiki/Robustness_principle
  *   Multiple versions of a case class supported at the same time (Record, Record2, etc), based on cascading support
  */
 class Rest(uriRoot: String, controller: Controller, persister: Persister, validator: Validator = new RestRulesValidator, config: Config = new Config) {
@@ -40,8 +41,15 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
 
   def resource[T <: Restable[T] with AnyRef : ClassTag : Manifest](supportedMethods: HttpMethod*) = {
     lazy val resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
+    implicit val formats: Formats = formatsFor(resourceName)
 
-    resourceToSerialiser += (resourceName -> SerialiseOnly[T](_.id.getOrElse("")))
+    resourceToSerialiser += (resourceName -> SerialiseOnly[T](_.id.getOrElse(""), id => hunt(resourceName, id)))
+
+    // TODO - CAS - 07/05/15 - Switch this to persister.getById, once we have /get/:id enabled
+    def hunt[T <: Restable[T] : Manifest](resourceName: String, id: String): Option[T] = persister.loadAll[T](resourceName) match {
+      case Right(seqTs) => seqTs.find(_.id == Some(id))
+      case Left(failure) => None
+    }
 
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
@@ -76,6 +84,11 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
     
     this
   }
+  
+  def huntCause(e: Throwable, causes: Seq[String]): String = Option(e.getCause) match {
+    case Some(throwable) => huntCause(throwable, causes :+ e.getMessage)
+    case None => (causes :+ e.getMessage).mkString("\n") + "\n" + e.getStackTraceString
+  }
 
   def addPost[T <: Restable[T] with AnyRef : Manifest](resourceName: String): Unit = {
     // TODO - CAS - 01/05/15 - This and the copy in Persister -> put into a Serialiser dependency
@@ -84,7 +97,8 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
         implicit val formats: Formats = formatsFor(resourceName)
         Right(Serialization.read[Seq[T]](body))
       } catch {
-        case e: Exception => Left(Failure(500, s"Failed to deserialise into $resourceName, due to: $e"))
+        case m: MappingException => Left(Failure(500, huntCause(m, Seq.empty[String])))
+        case e: Exception => Left(Failure(500, s"THE ONE IN REST ===> Failed to deserialise into $resourceName, due to: $e"))
       }
     
     post(pathTo(resourceName)) { request =>
@@ -115,18 +129,18 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
   def addGetAll[T <: Restable[T] with AnyRef : Manifest](resourceName: String): Unit = {
-    def loadAll(request: Request) = {
-      implicit val formats: Formats = formatsFor(resourceName)
-
-      persister.loadAll[T](resourceName) match {
-        case Right(seqTs) => render.body(Serialization.write(seqTs)).contentType(utf8Json).toFuture
-        case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
-      }
-    }
-
     // TODO - CAS - 20/04/15 - Remove support for the suffixed URI
-    get(s"${uriRoot.stripSuffix("/")}/$resourceName.json") { loadAll }
-    get(pathTo(resourceName)) { loadAll }
+    get(s"${uriRoot.stripSuffix("/")}/$resourceName.json") { request => loadAll(resourceName) }
+    get(pathTo(resourceName)) { request => loadAll(resourceName) }
+  }
+
+  def loadAll[T <: Restable[T] with AnyRef : Manifest](resourceName: String) = {
+    implicit val formats: Formats = formatsFor(resourceName)
+
+    persister.loadAll[T](resourceName) match {
+      case Right(seqTs) => render.body(Serialization.write(seqTs)).contentType(utf8Json).toFuture
+      case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
+    }
   }
 
   get(s"${uriRoot.stripSuffix("/")}/:unsupportedResourceName") { request =>

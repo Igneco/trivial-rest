@@ -6,6 +6,7 @@ import com.twitter.finagle.http.MediaType
 import com.twitter.finatra.Controller
 import com.twitter.finatra.test.MockApp
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names
+import org.json4s.Formats
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 import trivial.rest.TestDirectories._
@@ -60,13 +61,25 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
   }
 
   "TODO - We can send responses in nested form" in {
-    val fixture = new RestApiFixture(Config(flattenNestedResources = false))
     pending
+    val fixture = new RestApiFixture(Config(flattenNestedResources = false))
   }
 
-  "We can accept input in nested or flat id-referenced form" in {
+  "We can accept input in flat id-referenced form" in {
+    val fixture = new RestApiFixture()
+    fixture.persister_expects_save("spaceship", Seq(Spaceship(Some("1"), "Enterprise", 150, Vector(Some("1"), BigDecimal("33.3"), BigDecimal("1.4")))))
+    fixture.persister_expects_nextSequenceNumber(1)
+    fixture.persister_expects_loadAll("vector", Right(Seq(Vector(Some("1"), BigDecimal("33.3"), BigDecimal("1.4")))))
+
+    val response = fixture.app.post(s"/spaceship", body = """[{"name":"Enterprise","personnel":150,"bearing":"1"}]""")
+
+    response.body must equal("""[{"id":"1","name":"Enterprise","personnel":150,"bearing":"1"}]""")
+    response.code must equal(200)
+    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
+  }
+
+  "We can accept input in nested form" in {
     // post "[{"id":"7","name":"Enterprise","personnel":150,"bearing":{"id":"24","angle":79,"magnitude":0.4}}]"
-    // post "[{"id":"1","name":"Enterprise","personnel":150,"bearing":"1"}]"
     pending
   }
   
@@ -74,7 +87,11 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
     pending
   }
   
-  "We can serialise a resource which embeds another resource" in {
+  "We can choose to check that nested resources exist, or to ignore them" in {
+    pending
+  }
+  
+  "We can serialise (to an HTTP response) a resource which embeds another resource" in {
     val fixture = new RestApiFixture()
 
     fixture.persister_expects_loadAll("exchangerate", Right(Seq(
@@ -100,7 +117,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
 
     val response = fixture.app.get("/currency")
 
-    response.body must equal("""[{"id":"1","isoName":"EUR","symbol":"#"},{"id":"2","isoName":"GBP","symbol":"£"},{"id":"3","isoName":"USD","symbol":"$"}]""")
+    response.body must equal("""[{"id":"1","isoName":"EUR","symbol":"€"},{"id":"2","isoName":"GBP","symbol":"£"},{"id":"3","isoName":"USD","symbol":"$"}]""")
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
@@ -169,10 +186,10 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
   "Return a 405 for HTTP methods that are not supported" in {
     val app = new RestApiFixture().app
 
-    val response = app.post("/spaceship", body = "")
+    val response = app.put("/spaceship", body = "")
 
     response.code must equal(405)
-    response.body must equal( """Method not allowed: POST. Methods supported by /spaceship are: GET all""")
+    response.body must equal( """Method not allowed: PUT. Methods supported by /spaceship are: GET all, POST""")
   }
 
   "TODO - There is a way to migrate stucture changes" in {
@@ -191,7 +208,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
     val persisterMock: Persister = mock[Persister]
     val controllerWithRest = new Controller {
       new Rest("/", this, persisterMock)
-        .resource[Spaceship](GetAll)
+        .resource[Spaceship](GetAll, Post)
         .resource[Vector](GetAll)
         .resource[Planet](GetAll, Post)
         .resource[Foo](GetAll)
@@ -201,14 +218,14 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
     val app = MockApp(controllerWithRest)
 
     def persister_expects_loadAll[T <: Restable[T]](expectedParam: String, returns: Either[Failure, Seq[T]]) = {
-      (persisterMock.loadAll[T](_: String)(_: Manifest[T])).expects(expectedParam, *).returning(returns)
+      (persisterMock.loadAll[T](_: String)(_: Manifest[T], _: Formats)).expects(expectedParam, *, *).returning(returns)
     }
 
     val sequence = new AtomicInteger(0)
     def persister_expects_nextSequenceNumber(highest: Int) = (persisterMock.nextSequenceNumber _).expects().onCall(() => sequence.incrementAndGet()).repeat(highest)
 
     def persister_expects_save[T <: Restable[T]](expectedResource: String, expectedSeq: Seq[T]) = {
-      (persisterMock.save[T](_: String, _: Seq[T])(_: Manifest[T])).expects(expectedResource, expectedSeq, *).returning(Right(expectedSeq))
+      (persisterMock.save[T](_: String, _: Seq[T])(_: Manifest[T], _: Formats)).expects(expectedResource, expectedSeq, *, *).returning(Right(expectedSeq))
     }
   }
 }

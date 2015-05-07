@@ -1,8 +1,11 @@
 package trivial.rest.persistence
 
+import org.json4s.native.Serialization
+import org.json4s.{Formats, NoTypeHints}
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
-import trivial.rest.Foo
 import trivial.rest.TestDirectories._
+import trivial.rest.serialisation.SerialiseOnly
+import trivial.rest.{Currency, ExchangeRate, Foo}
 
 import scala.reflect.io.{Directory, File}
 
@@ -10,6 +13,8 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
 
   override protected def beforeAll() = cleanTestDirs()
   override protected def afterAll()  = beforeAll()
+
+  implicit val formats: Formats = Serialization.formats(NoTypeHints)
 
   "TODO - Meets the PersisterContract terms" in {
     // new PersisterContract(new JsonOnFileSystem("target/test"))
@@ -34,6 +39,30 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
       .writeAll( """[{"id":"1","bar":"bar"}]""")
 
     new JsonOnFileSystem(docRoot).loadAll[Foo]("foo") mustEqual Right(Seq(Foo(Some("1"), "bar")))
+  }
+  
+  "We can deserialise (load) resources which contain ID references to other resources" in {
+    pending
+    val docRoot = Directory(nextTestDir)
+    docRoot.createDirectory()
+    val resourcesDir = Directory("src/test/resources")
+    FileSystem.copy(File(resourcesDir / "currency.json"), File(docRoot / "currency.json"))
+    FileSystem.copy(File(resourcesDir / "exchangerate.json"), File(docRoot / "exchangerate.json"))
+
+    val expected = Seq(
+      ExchangeRate(Some("1"), 33.3, Currency(Some("2"), "GBP", "£")),
+      ExchangeRate(Some("2"), 44.4, Currency(Some("3"), "USD", "$"))
+    )
+
+    implicit val formats = Serialization.formats(NoTypeHints) +
+      SerialiseOnly[ExchangeRate](_.id.getOrElse(""), _ => None) +
+      SerialiseOnly[Currency](_.id.getOrElse(""), _ => None)
+
+    new JsonOnFileSystem(docRoot).loadAll[ExchangeRate]("exchangerate") mustEqual Right(expected)
+  }
+
+  "We always persist resources as flat resources, with ID-references to component resources" in {
+    pending
   }
 
   "If a doc root doesn't exist, it is created" in {

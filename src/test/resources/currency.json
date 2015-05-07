@@ -1,0 +1,5 @@
+[
+  {"id":"1","isoName":"EUR","symbol":"€"},
+  {"id":"2","isoName":"GBP","symbol":"£"},
+  {"id":"3","isoName":"USD","symbol":"$"}
+]

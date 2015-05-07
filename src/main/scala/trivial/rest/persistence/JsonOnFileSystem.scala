@@ -10,14 +10,14 @@ import scala.reflect.io.{File, Directory}
 
 class JsonOnFileSystem(docRoot: Directory) extends Persister {
 
-  implicit val formats: Formats = Serialization.formats(NoTypeHints)
-
-  override def loadAll[T <: Restable[T] with AnyRef : Manifest](resourceName: String): Either[Failure, Seq[T]] = {
+  override def loadAll[T <: Restable[T] with AnyRef : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]] = {
     def deserialise(body: String): Either[Failure, Seq[T]] =
       try {
         Right(Serialization.read[Seq[T]](body))
       } catch {
-        /* TODO - CAS - 01/05/15 - Map these to a better error message
+        /* TODO - CAS - 01/05/15 - Map these to better error messages
+        
+        (1)
         // The extract[] method doesn't know the type of T, probably because it can't infer it.
         // Pass in the type explicitly. This is trying to create a Seq[Nothing], so it is trying
         // to build Nothings and failing. Fixed by calling loadAll[T](param) instead of loadAll(param)
@@ -26,9 +26,17 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
         args=
         arg types=
         constructor=public scala.runtime.Nothing$()))
+
+        (2)
+        // We have pulled an ID off disk, and we don't know how to map it to a thing.
+
+        Left(Failure(500,Failed to deserialise into exchangerate, due to: org.json4s.package$MappingException: No usable value for currency
+        No usable value for isoName
+        Did not find value which can be converted into java.lang.String
+
         */
         // TODO - CAS - 01/05/15 - Try parsing the JSON AST, and showing that, for MappingException, which is about converting AST -> T
-        case e: Exception => Left(Failure(500, s"Failed to deserialise into $resourceName, due to: $e"))
+        case e: Exception => Left(Failure(500, s"THE ONE IN JsonOnFileSystem ===> Failed to deserialise into $resourceName, due to: $e"))
       }
     
     if (hasLocalFile(fileFor(resourceName)))
@@ -41,10 +49,12 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
     readFileToString(fileFor(resourceName).jfile)
 
   // TODO - CAS - 01/05/15 - Require a ClassTag, so that we can fail if no class is specfied, or tell the client what the class was that didn't load
-  override def save[T <: Restable[T] : Manifest](resourceName: String, t: Seq[T]): Either[Failure, Seq[T]] = {
+  override def save[T <: Restable[T] : Manifest](resourceName: String, t: Seq[T])(implicit formats: Formats): Either[Failure, Seq[T]] = {
     if (docRoot.notExists) docRoot.createDirectory()
     val targetFile = fileFor(resourceName)
     if (targetFile.notExists) targetFile.createFile()
+    
+    // TODO - CAS - 06/05/15 - Invalidate the cache of T
 
     loadAll[T](resourceName).right.map{previous =>
       val newAll: Seq[T] = previous ++ t
