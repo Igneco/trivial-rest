@@ -22,15 +22,14 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
   }
   
   "We can get all ExchangeRates" in {
-    pending
     get("/exchangerate")
 
-    response.body must equal("""[{"id":"1","rate":33.3,"currency":"22"}]""")
+    response.body must equal("""[{"id":"1","rate":33.3,"currency":"2"},{"id":"2","rate":44.4,"currency":"3"}]""")
     response.code must equal(200)
     response.getHeader(CONTENT_TYPE) must equal("application/json; charset=UTF-8")
   }
   
-  "We can get post an ExchangeRate" in {
+  "We can post an ExchangeRate" in {
     pending
   }
 }
