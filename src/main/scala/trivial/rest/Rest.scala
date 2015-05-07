@@ -31,8 +31,6 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
   
   import controller._
   
-  val serialiser = DefaultJacksonJsonSerializer
-  
   def formatsFor(resourceName: String) =
     if (config.flattenNestedResources)
       Serialization.formats(NoTypeHints) ++ (resourceToSerialiser - resourceName).values
@@ -146,7 +144,8 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
   }
 
   get(uriRoot) { request =>
-    render.body(serialiser.serialize(resourceToSerialiser.keySet.toSeq.sorted[String])).contentType(utf8Json).toFuture
+    // TODO - CAS - 07/05/15 - the /[API ROOT]/ URI should be a resource: an array of available resource links and methods; ResourceDescriptor(relativeUri: String, httpMethods: HttpMethod*)
+    render.body(DefaultJacksonJsonSerializer.serialize(resourceToSerialiser.keySet.toSeq.sorted[String])).contentType(utf8Json).toFuture
   }
 
   controller.errorHandler = controller.errorHandler match {
