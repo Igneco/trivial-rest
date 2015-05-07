@@ -8,7 +8,7 @@ import org.json4s._
 import org.json4s.native.Serialization
 import trivial.rest.configuration.Config
 import trivial.rest.persistence.Persister
-import trivial.rest.serialisation.Serialiser
+import trivial.rest.serialisation.{SerialiserExceptionHelper, Serialiser}
 import trivial.rest.validation.{RestRulesValidator, Validator}
 
 import scala.collection.mutable
@@ -41,6 +41,8 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
 
   def resource[T <: Resource[T] with AnyRef : ClassTag : Manifest](supportedMethods: HttpMethod*) = {
     lazy val resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
+    
+    // TODO - CAS - 07/05/15 - Needs to be pushed down to a callback, otherwise not all formats will be loaded
     implicit val formats: Formats = formatsFor(resourceName)
 
     resourceToSerialiser += (resourceName -> Serialiser[T](_.id.getOrElse(""), id => hunt(resourceName, id)))
@@ -85,11 +87,6 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
     this
   }
   
-  def huntCause(e: Throwable, causes: Seq[String]): String = Option(e.getCause) match {
-    case Some(throwable) => huntCause(throwable, causes :+ e.getMessage)
-    case None => (causes :+ e.getMessage).mkString("\n") + "\n" + e.getStackTraceString
-  }
-
   def addPost[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
     // TODO - CAS - 01/05/15 - This and the copy in Persister -> put into a Serialiser dependency
     def deserialise(body: String): Either[Failure, Seq[T]] =
@@ -97,7 +94,7 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
         implicit val formats: Formats = formatsFor(resourceName)
         Right(Serialization.read[Seq[T]](body))
       } catch {
-        case m: MappingException => Left(Failure(500, huntCause(m, Seq.empty[String])))
+        case m: MappingException => Left(Failure(500, SerialiserExceptionHelper.huntCause(m, Seq.empty[String])))
         case e: Exception => Left(Failure(500, s"THE ONE IN REST ===> Failed to deserialise into $resourceName, due to: $e"))
       }
     

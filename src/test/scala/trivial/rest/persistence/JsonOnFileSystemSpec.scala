@@ -5,7 +5,7 @@ import org.json4s.{Formats, NoTypeHints}
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 import trivial.rest.TestDirectories._
 import trivial.rest.serialisation.Serialiser
-import trivial.rest.{Currency, ExchangeRate, Foo}
+import trivial.rest._
 
 import scala.reflect.io.{Directory, File}
 
@@ -41,8 +41,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
     new JsonOnFileSystem(docRoot).loadAll[Foo]("foo") mustEqual Right(Seq(Foo(Some("1"), "bar")))
   }
   
-  "We can deserialise (load) resources which contain ID references to other resources" in {
-    pending
+  "We can deserialise (load and inflate) resources which contain ID references to other resources" in {
     val docRoot = Directory(nextTestDir)
     docRoot.createDirectory()
     val resourcesDir = Directory("src/test/resources")
@@ -54,11 +53,21 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
       ExchangeRate(Some("2"), 44.4, Currency(Some("3"), "USD", "$"))
     )
 
-    implicit val formats = Serialization.formats(NoTypeHints) +
-      Serialiser[ExchangeRate](_.id.getOrElse(""), _ => None) +
-      Serialiser[Currency](_.id.getOrElse(""), _ => None)
+    val jofs = new JsonOnFileSystem(docRoot)
 
-    new JsonOnFileSystem(docRoot).loadAll[ExchangeRate]("exchangerate") mustEqual Right(expected)
+    implicit def formats = Serialization.formats(NoTypeHints) +
+      Serialiser[Currency](_.id.getOrElse(""), id => hunt[Currency]("currency", jofs, id))
+
+    // TODO - CAS - 07/05/15 - put in the real code
+    def hunt[T <: Resource[T] : Manifest](resourceName: String, jofs: JsonOnFileSystem, id: String): Option[T] = {
+      val allTheTs: Either[Failure, Seq[T]] = jofs.loadAll[T](resourceName)
+      allTheTs match {
+        case Right(seqTs) => seqTs.find(_.id == Some(id))
+        case Left(failure) => None
+      }
+    }
+
+    jofs.loadAll[ExchangeRate]("exchangerate") mustEqual Right(expected)
   }
 
   "We always persist resources as flat resources, with ID-references to component resources" in {

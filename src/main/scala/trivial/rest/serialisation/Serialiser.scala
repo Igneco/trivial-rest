@@ -22,3 +22,10 @@ case class Serialiser[T: ClassTag](serialise: T ⇒ String, deserialise: String 
     case x: T ⇒ JString(serialise(x))
   }
 }
+
+object SerialiserExceptionHelper {
+  def huntCause(e: Throwable, causes: Seq[String]): String = Option(e.getCause) match {
+    case Some(throwable) => huntCause(throwable, causes :+ e.getMessage)
+    case None => (causes :+ e.getMessage).mkString("\n") + "\n" + e.getStackTraceString
+  }
+}

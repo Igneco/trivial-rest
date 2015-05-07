@@ -1,8 +1,9 @@
 package trivial.rest.persistence
 
 import org.apache.commons.io.FileUtils._
-import org.json4s.Formats
 import org.json4s.native.Serialization
+import org.json4s.{Formats, MappingException}
+import trivial.rest.serialisation.SerialiserExceptionHelper
 import trivial.rest.{Failure, Resource}
 
 import scala.reflect.io.{Directory, File}
@@ -12,6 +13,7 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
   override def loadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]] = {
     def deserialise(body: String): Either[Failure, Seq[T]] =
       try {
+        // TODO - CAS - 07/05/15 - If T is Nothing, then someone hasn't specified a type parameter somewhere. Try implicitly[Manifest[T]].toString
         Right(Serialization.read[Seq[T]](body))
       } catch {
         /* TODO - CAS - 01/05/15 - Map these to better error messages
@@ -35,6 +37,7 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
 
         */
         // TODO - CAS - 01/05/15 - Try parsing the JSON AST, and showing that, for MappingException, which is about converting AST -> T
+        case m: MappingException => Left(Failure(500, SerialiserExceptionHelper.huntCause(m, Seq.empty[String])))
         case e: Exception => Left(Failure(500, s"THE ONE IN JsonOnFileSystem ===> Failed to deserialise into $resourceName, due to: $e"))
       }
     
