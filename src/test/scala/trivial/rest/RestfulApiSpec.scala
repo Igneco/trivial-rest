@@ -206,15 +206,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
   
   class RestApiFixture(config: Config = Config()) {
     val persisterMock: Persister = mock[Persister]
-    val controllerWithRest = new Controller {
-      new Rest("/", this, persisterMock)
-        .resource[Spaceship](GetAll, Post)
-        .resource[Vector](GetAll)
-        .resource[Planet](GetAll, Post)
-        .resource[Foo](GetAll)
-        .resource[Currency](GetAll)
-        .resource[ExchangeRate](GetAll)
-    }
+    val controllerWithRest = new RestfulControllerExample(persisterMock)
     val app = MockApp(controllerWithRest)
 
     def persister_expects_loadAll[T <: Resource[T]](expectedParam: String, returns: Either[Failure, Seq[T]]) = {

@@ -1,18 +1,20 @@
 package trivial.rest
 
 import com.twitter.finatra.{Controller, FinatraServer}
-import trivial.rest.persistence.JsonOnFileSystem
+import trivial.rest.persistence.{Persister, JsonOnFileSystem}
 
 import scala.reflect.io.Directory
 
-class RestfulControllerExample extends Controller {
-  new Rest("/", this, new JsonOnFileSystem(Directory("src/test/resources")))
-    .resource[Spaceship](GetAll)
+class RestfulControllerExample(persister: Persister) extends Controller {
+  new Rest("/", this, persister)
+    .resource[Spaceship](GetAll, Post)
     .resource[Vector](GetAll)
-    .resource[Planet](GetAll)
-    .resource[Foo](GetAll, Post)
+    .resource[Planet](GetAll, Post)
+    .resource[Foo](GetAll)
+    .resource[Currency](GetAll)
+    .resource[ExchangeRate](GetAll)
 }
 
 object RestApp extends FinatraServer {
-  register(new RestfulControllerExample)
+  register(new RestfulControllerExample(new JsonOnFileSystem(Directory("src/test/resources"))))
 }

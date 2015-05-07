@@ -58,14 +58,11 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
     implicit def formats = Serialization.formats(NoTypeHints) +
       Serialiser[Currency](_.id.getOrElse(""), id => hunt[Currency]("currency", jofs, id))
 
-    // TODO - CAS - 07/05/15 - put in the real code
-    def hunt[T <: Resource[T] : Manifest](resourceName: String, jofs: JsonOnFileSystem, id: String): Option[T] = {
-      val allTheTs: Either[Failure, Seq[T]] = jofs.loadAll[T](resourceName)
-      allTheTs match {
+    def hunt[T <: Resource[T] : Manifest](resourceName: String, jofs: JsonOnFileSystem, id: String): Option[T] =
+      jofs.loadAll[T](resourceName) match {
         case Right(seqTs) => seqTs.find(_.id == Some(id))
         case Left(failure) => None
       }
-    }
 
     jofs.loadAll[ExchangeRate]("exchangerate") mustEqual Right(expected)
   }
