@@ -50,7 +50,7 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
   private def fromDisk[T <: Resource[T]](resourceName: String): String =
     readFileToString(fileFor(resourceName).jfile)
 
-  // TODO - CAS - 01/05/15 - Require a ClassTag, so that we can fail if no class is specfied, or tell the client what the class was that didn't load
+  // TODO - CAS - 01/05/15 - Require a ClassTag, so that we can fail if no class is specified, or tell the client what the class was that didn't load
   override def save[T <: Resource[T] : Manifest](resourceName: String, newItems: Seq[T])(implicit formats: Formats): Either[Failure, Int] = {
     if (docRoot.notExists) docRoot.createDirectory()
     val targetFile = fileFor(resourceName)
