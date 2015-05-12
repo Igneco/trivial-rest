@@ -22,6 +22,7 @@ object HttpMethod {
 }
 
 object Classy {
+  def runtimeClass[T : ClassTag]: Class[_] = implicitly[ClassTag[T]].runtimeClass
   def name[T : ClassTag]: String = implicitly[ClassTag[T]].runtimeClass.getSimpleName.stripSuffix("$")
   def name(clazz: Class[_]): String = clazz.getSimpleName.stripSuffix("$")
 }

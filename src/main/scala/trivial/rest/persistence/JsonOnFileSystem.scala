@@ -17,7 +17,7 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
         Right(Serialization.read[Seq[T]](body))
       } catch {
         /* TODO - CAS - 01/05/15 - Map these to better error messages
-        
+
         (1)
         // The extract[] method doesn't know the type of T, probably because it can't infer it.
         // Pass in the type explicitly. This is trying to create a Seq[Nothing], so it is trying
@@ -40,7 +40,7 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
         case m: MappingException => Left(Failure(500, SerialiserExceptionHelper.huntCause(m, Seq.empty[String])))
         case e: Exception => Left(Failure(500, s"THE ONE IN JsonOnFileSystem ===> Failed to deserialise into $resourceName, due to: $e"))
       }
-    
+
     if (hasLocalFile(fileFor(resourceName)))
       deserialise(fromDisk(resourceName))
     else
@@ -51,18 +51,18 @@ class JsonOnFileSystem(docRoot: Directory) extends Persister {
     readFileToString(fileFor(resourceName).jfile)
 
   // TODO - CAS - 01/05/15 - Require a ClassTag, so that we can fail if no class is specfied, or tell the client what the class was that didn't load
-  override def save[T <: Resource[T] : Manifest](resourceName: String, t: Seq[T])(implicit formats: Formats): Either[Failure, Seq[T]] = {
+  override def save[T <: Resource[T] : Manifest](resourceName: String, newItems: Seq[T])(implicit formats: Formats): Either[Failure, Int] = {
     if (docRoot.notExists) docRoot.createDirectory()
     val targetFile = fileFor(resourceName)
     if (targetFile.notExists) targetFile.createFile()
-    
+
     // TODO - CAS - 06/05/15 - Invalidate the cache of T
 
-    loadAll[T](resourceName).right.map{previous =>
-      val newAll: Seq[T] = previous ++ t
-      targetFile.writeAll(Serialization.write(newAll))
-      newAll
+    loadAll[T](resourceName).right.map { previousItems =>
+      targetFile.writeAll(Serialization.write(previousItems ++ newItems))
     }
+
+    Right(newItems.size)
   }
 
   // TODO - CAS - 21/04/15 - Consider Scala async to make this write-behind: https://github.com/scala/async

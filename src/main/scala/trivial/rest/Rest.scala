@@ -8,7 +8,7 @@ import org.json4s._
 import org.json4s.native.Serialization
 import trivial.rest.configuration.Config
 import trivial.rest.persistence.Persister
-import trivial.rest.serialisation.{SerialiserExceptionHelper, ResourceSerialiser}
+import trivial.rest.serialisation.{ResourceSerialiser, Serialiser, SerialiserExceptionHelper}
 import trivial.rest.validation.{RestRulesValidator, Validator}
 
 import scala.collection.mutable
@@ -19,37 +19,31 @@ import scala.reflect.ClassTag
  * (1) Declare a case class
  * (2) Register it as a Resource, specifying the allowed HTTP methods
  * (3) You get a truly RESTful API, your allowed HTTP methods, and persistence, and caching, for free.
- * 
+ *
  * Concepts to explore:
  *   Case classes as a schema for JSON
  *   Postel's Law / The Robustness Principle - http://en.wikipedia.org/wiki/Robustness_principle
  *   Multiple versions of a case class supported at the same time (Record, Record2, etc), based on cascading support
  */
-class Rest(uriRoot: String, controller: Controller, persister: Persister, validator: Validator = new RestRulesValidator, config: Config = new Config) {
-  private val resourceToSerialiser = mutable.Map.empty[String, ResourceSerialiser[_]]
+class Rest(uriRoot: String,
+           controller: Controller,
+           serialiser: Serialiser,
+           persister: Persister,
+           validator: Validator = new RestRulesValidator,
+           config: Config = new Config) {
+
+  private val resources = mutable.ListBuffer[String]()
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"
 
   import controller._
 
-  def formatsFor(resourceName: String) =
-    if (config.flattenNestedResources)
-      Serialization.formats(NoTypeHints) ++ (resourceToSerialiser - resourceName).values
-    else
-      Serialization.formats(NoTypeHints)
-
   def resource[T <: Resource[T] with AnyRef : ClassTag : Manifest](supportedMethods: HttpMethod*) = {
     lazy val resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
 
-    // TODO - CAS - 07/05/15 - Needs to be pushed down to a callback, otherwise not all formats will be loaded
-    implicit val formats: Formats = formatsFor(resourceName)
+    resources += resourceName
+    serialiser.registerResource[T](allOf[T])
 
-    resourceToSerialiser += (resourceName -> ResourceSerialiser[T](_.id.getOrElse(""), id => hunt(resourceName, id)))
-
-    // TODO - CAS - 07/05/15 - Switch this to persister.getById, once we have /get/:id enabled
-    def hunt[T <: Resource[T] : Manifest](resourceName: String, id: String): Option[T] = persister.loadAll[T](resourceName) match {
-      case Right(seqTs) => seqTs.find(_.id == Some(id))
-      case Left(failure) => None
-    }
+    def allOf[T <: Resource[T] : Manifest]: Formats => Either[Failure, Seq[T]] = (formats) => persister.loadAll[T](resourceName)(implicitly[Manifest[T]], formats)
 
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
@@ -81,42 +75,33 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
       case Delete => unsupport(delete, Delete)
       case x => throw new UnsupportedOperationException(s"I haven't built support for $x yet")
     }
-    
+
     this
   }
-  
+
   def addPost[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
-    // TODO - CAS - 01/05/15 - This and the copy in Persister -> put into a Serialiser dependency
-    def deserialise(body: String): Either[Failure, Seq[T]] =
-      try {
-        implicit val formats: Formats = formatsFor(resourceName)
-        Right(Serialization.read[Seq[T]](body))
-      } catch {
-        case m: MappingException => Left(Failure(500, SerialiserExceptionHelper.huntCause(m, Seq.empty[String])))
-        case e: Exception => Left(Failure(500, s"THE ONE IN REST ===> Failed to deserialise into $resourceName, due to: $e"))
-      }
-    
+
     post(pathTo(resourceName)) { request =>
       // TODO - CAS - 27/04/15 - Yes, this will become a for-comp, but only when I have worked out all the bits
 
-      val persisted = try {
-        implicit val formats: Formats = formatsFor(resourceName)
-        
-        val deserialisedT: Either[Failure, Seq[T]] = deserialise(request.getContentString())
+      val persisted: Either[Failure, String] = try {
+        val deserialisedT: Either[Failure, Seq[T]] = serialiser.deserialise(request.getContentString())
         val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
         val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(s"${persister.nextSequenceNumber}")))
-        val saved: Either[Failure, Seq[T]] = copiedWithSeqId.right.flatMap(pj => persister.save(resourceName, pj))
-        val serialised: Either[Failure, String] = saved.right.map(t => Serialization.write(t))
+
+        // TODO - CAS - 12/05/15 - Push the serialiser.formatsExcept[T] dependency into the persister
+        val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(pj => persister.save(resourceName, pj)(implicitly[Manifest[T]], serialiser.formatsExcept[T]))
+        val serialised: Either[Failure, String] = saved.right.map(t => s"""{"addedCount":"$t"}""")
         serialised
       } catch {
         case e: Exception => Left(Failure(500, s"It went horribly wrong: $e"))
       }
-      
+
       persisted match {
-        case Right(bytes)  => render.body(bytes).contentType(utf8Json).toFuture
+        case Right(contents)  => render.body(contents).contentType(utf8Json).toFuture
         case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
       }
-      
+
       // TODO - CAS - 22/04/15 - Rebuild cache of T
     }
   }
@@ -125,15 +110,14 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
 
   def addGetAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
     // TODO - CAS - 20/04/15 - Remove support for the suffixed URI
-    get(s"${uriRoot.stripSuffix("/")}/$resourceName.json") { request => loadAll(resourceName) }
+    get(s"${pathTo(resourceName)}.json") { request => loadAll(resourceName) }
     get(pathTo(resourceName)) { request => loadAll(resourceName) }
   }
 
   def loadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String) = {
-    implicit val formats: Formats = formatsFor(resourceName)
-
-    persister.loadAll[T](resourceName) match {
-      case Right(seqTs) => render.body(Serialization.write(seqTs)).contentType(utf8Json).toFuture
+    // TODO - CAS - 12/05/15 - Push the serialiser.formatsExcept[T] dependency into the persister
+    persister.loadAll[T](resourceName)(implicitly[Manifest[T]], serialiser.formatsExcept[T]) match {
+      case Right(seqTs) => render.body(serialiser.serialise(seqTs)).contentType(utf8Json).toFuture
       case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
     }
   }
@@ -145,7 +129,7 @@ class Rest(uriRoot: String, controller: Controller, persister: Persister, valida
 
   get(uriRoot) { request =>
     // TODO - CAS - 07/05/15 - the /[API ROOT]/ URI should be a resource: an array of available resource links and methods; ResourceDescriptor(relativeUri: String, httpMethods: HttpMethod*)
-    render.body(DefaultJacksonJsonSerializer.serialize(resourceToSerialiser.keySet.toSeq.sorted[String])).contentType(utf8Json).toFuture
+    render.body(DefaultJacksonJsonSerializer.serialize(resources.sorted[String])).contentType(utf8Json).toFuture
   }
 
   controller.errorHandler = controller.errorHandler match {

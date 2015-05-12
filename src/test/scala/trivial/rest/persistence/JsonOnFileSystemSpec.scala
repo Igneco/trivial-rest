@@ -20,7 +20,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
     // new PersisterContract(new JsonOnFileSystem("target/test"))
     pending
   }
-  
+
   "We can loadAll when the data file exists but is empty" in {
     val docRoot = Directory(nextTestDir)
     docRoot.createDirectory()
@@ -30,7 +30,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
 
     new JsonOnFileSystem(docRoot).loadAll("foo") mustEqual Right(Seq[Foo]())
   }
-  
+
   "We can loadAll" in {
     val docRoot = Directory(nextTestDir)
     docRoot.createDirectory()
@@ -40,7 +40,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
 
     new JsonOnFileSystem(docRoot).loadAll[Foo]("foo") mustEqual Right(Seq(Foo(Some("1"), "bar")))
   }
-  
+
   "We can deserialise (load and inflate) resources which contain ID references to other resources" in {
     val docRoot = provisionedTestDir
 
@@ -51,7 +51,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
 
     val jofs = new JsonOnFileSystem(docRoot)
 
-    implicit def formats = Serialization.formats(NoTypeHints) +
+    implicit def formats: Formats = Serialization.formats(NoTypeHints) +
       ResourceSerialiser[Currency](_.id.getOrElse(""), id => hunt[Currency]("currency", jofs, id))
 
     def hunt[T <: Resource[T] : Manifest](resourceName: String, jofs: JsonOnFileSystem, id: String): Option[T] =
@@ -98,7 +98,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
 
     targetFile.slurp() mustEqual """[{"id":"1","bar":"bar"},{"id":"2","bar":"baz"}]"""
   }
-  
+
   "Sequence numbers are stored in a write-behind file on disk" in {
     val docRoot = Directory(nextTestDir)
     val jofs = new JsonOnFileSystem(docRoot)
@@ -106,6 +106,6 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
     jofs.nextSequenceNumber mustBe 1
     jofs.nextSequenceNumber mustBe 2
   }
-  
+
   // "Adding a second record appends to the data file" in {}
 }

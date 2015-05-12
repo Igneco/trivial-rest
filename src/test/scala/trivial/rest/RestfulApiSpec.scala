@@ -1,6 +1,6 @@
 package trivial.rest
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicIntegerArray, AtomicInteger}
 
 import com.twitter.finagle.http.MediaType
 import com.twitter.finatra.Controller
@@ -12,6 +12,8 @@ import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 import trivial.rest.TestDirectories._
 import trivial.rest.configuration.Config
 import trivial.rest.persistence.Persister
+
+import scala.collection.mutable
 
 class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll with MockFactory {
 
@@ -73,7 +75,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
 
     val response = fixture.app.post(s"/spaceship", body = """[{"name":"Enterprise","personnel":150,"bearing":"1"}]""")
 
-    response.body must equal("""[{"id":"1","name":"Enterprise","personnel":150,"bearing":"1"}]""")
+    response.body must equal("""{"addedCount":"1"}""")
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
@@ -82,15 +84,15 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
     // post "[{"id":"7","name":"Enterprise","personnel":150,"bearing":{"id":"24","angle":79,"magnitude":0.4}}]"
     pending
   }
-  
+
   "We can choose to check that flat references to other resources exist, or to ignore them" in {
     pending
   }
-  
+
   "We can choose to check that nested resources exist, or to ignore them" in {
     pending
   }
-  
+
   "We can serialise (to an HTTP response) a resource which embeds another resource" in {
     val fixture = new RestApiFixture()
 
@@ -134,12 +136,21 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
 
   "POSTing a new item creates a unique ID for it" in {
     val fixture = new RestApiFixture()
-    fixture.persister_expects_save("planet", Seq(Planet(Some("1"), "Earth", "tolerable")))
-    fixture.persister_expects_nextSequenceNumber(1)
+
+    fixture.persister_expects_nextSequenceNumber(666)
+    fixture.persister_expects_save("planet", Seq(Planet(Some("666"), "Earth", "tolerable")))
+
+    fixture.app.post(s"/planet", body = """[{"name": "Earth", "classification": "tolerable"}]""")
+  }
+
+  "POSTing new items returns a count of the number of items added" in {
+    val fixture = new RestApiFixture()
+    fixture.persister_expects_nextSequenceNumber(10)
+    fixture.persister_expects_save("planet", Seq(Planet(Some("10"), "Earth", "tolerable")))
 
     val response = fixture.app.post(s"/planet", body = """[{"name": "Earth", "classification": "tolerable"}]""")
 
-    response.body must equal("""[{"id":"1","name":"Earth","classification":"tolerable"}]""")
+    response.body must equal("""{"addedCount":"1"}""")
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
@@ -155,7 +166,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
 
   "We can POST many items at once to be persisted" in {
     val fixture = new RestApiFixture()
-    fixture.persister_expects_nextSequenceNumber(2)
+    fixture.persister_expects_nextSequenceNumber(1,2)
     fixture.persister_expects_save("planet", Seq(
       Planet(Some("1"), "Mercury", "bloody hot"),
       Planet(Some("2"), "Venus", "also bloody hot")
@@ -165,8 +176,8 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
                                                      |  {"name": "Mercury", "classification": "bloody hot"},
                                                      |  {"name": "Venus", "classification": "also bloody hot"}
                                                      |]""".stripMargin)
-    
-    postResponse.body must equal("""[{"id":"1","name":"Mercury","classification":"bloody hot"},{"id":"2","name":"Venus","classification":"also bloody hot"}]""")
+
+    postResponse.body must equal("""{"addedCount":"2"}""")
     postResponse.code must equal(200)
   }
 
@@ -176,11 +187,14 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
     fixture.persister_expects_save("planet", Seq(Planet(Some("2"), "Mars", "chilly")))
     fixture.persister_expects_save("planet", Seq(Planet(Some("3"), "Uranus", "a little dark")))
 
-    fixture.persister_expects_nextSequenceNumber(3)
+    fixture.persister_expects_nextSequenceNumber(1,2,3)
 
-    fixture.app.post(s"/planet", body = """[{"name": "Earth","classification": "tolerable"}]""")
-    fixture.app.post(s"/planet", body = """[{"name": "Mars","classification": "chilly"}]""")
-    fixture.app.post(s"/planet", body = """[{"name": "Uranus","classification": "a little dark"}]""")
+    val r1 = fixture.app.post(s"/planet", body = """[{"name": "Earth","classification": "tolerable"}]""")
+    r1.body must equal("""{"addedCount":"1"}""")
+    val r2 = fixture.app.post(s"/planet", body = """[{"name": "Mars","classification": "chilly"}]""")
+    r2.body must equal("""{"addedCount":"1"}""")
+    val r3 = fixture.app.post(s"/planet", body = """[{"name": "Uranus","classification": "a little dark"}]""")
+    r3.body must equal("""{"addedCount":"1"}""")
   }
 
   "Return a 405 for HTTP methods that are not supported" in {
@@ -203,7 +217,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
   // TODO - CAS - 27/04/15:
   // Remove the .json suffix in the URL, if that is all we are going to support
   // Caching
-  
+
   class RestApiFixture(config: Config = Config()) {
     val persisterMock: Persister = mock[Persister]
     val controllerWithRest = new RestfulControllerExample(persisterMock)
@@ -213,11 +227,14 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
       (persisterMock.loadAll[T](_: String)(_: Manifest[T], _: Formats)).expects(expectedParam, *, *).returning(returns)
     }
 
-    val sequence = new AtomicInteger(0)
-    def persister_expects_nextSequenceNumber(highest: Int) = (persisterMock.nextSequenceNumber _).expects().onCall(() => sequence.incrementAndGet()).repeat(highest)
+    val sequence = new mutable.Queue[Int]()
+    def persister_expects_nextSequenceNumber(values: Int*) = {
+      sequence.enqueue(values:_*)
+      (persisterMock.nextSequenceNumber _).expects().onCall(() => sequence.dequeue()).anyNumberOfTimes()
+    }
 
     def persister_expects_save[T <: Resource[T]](expectedResource: String, expectedSeq: Seq[T]) = {
-      (persisterMock.save[T](_: String, _: Seq[T])(_: Manifest[T], _: Formats)).expects(expectedResource, expectedSeq, *, *).returning(Right(expectedSeq))
+      (persisterMock.save[T](_: String, _: Seq[T])(_: Manifest[T], _: Formats)).expects(expectedResource, expectedSeq, *, *).returning(Right(expectedSeq.size))
     }
   }
 }
