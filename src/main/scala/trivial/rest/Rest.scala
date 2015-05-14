@@ -5,10 +5,8 @@ import com.twitter.finatra.serialization.DefaultJacksonJsonSerializer
 import com.twitter.finatra.{Controller, Request, ResponseBuilder}
 import com.twitter.util.Future
 import org.json4s._
-import org.json4s.native.Serialization
-import trivial.rest.configuration.Config
 import trivial.rest.persistence.Persister
-import trivial.rest.serialisation.{ResourceSerialiser, Serialiser, SerialiserExceptionHelper}
+import trivial.rest.serialisation.Serialiser
 import trivial.rest.validation.{RestRulesValidator, Validator}
 
 import scala.collection.mutable
@@ -29,8 +27,7 @@ class Rest(uriRoot: String,
            controller: Controller,
            serialiser: Serialiser,
            persister: Persister,
-           validator: Validator = new RestRulesValidator,
-           config: Config = new Config) {
+           validator: Validator = new RestRulesValidator) {
 
   private val resources = mutable.ListBuffer[String]()
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"

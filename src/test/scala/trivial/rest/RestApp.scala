@@ -7,18 +7,18 @@ import trivial.rest.serialisation.{Json4sSerialiser, Serialiser}
 import scala.reflect.ClassTag
 import scala.reflect.io.Directory
 
-class RestfulControllerExample(persister: Persister) extends Controller {
-  val serialiser = new Json4sSerialiser
-
+class RestfulControllerExample(serialiser: Serialiser, persister: Persister) extends Controller {
   new Rest("/", this, serialiser, persister)
     .resource[Spaceship](GetAll, Post)
     .resource[Vector](GetAll)
     .resource[Planet](GetAll, Post)
-    .resource[Foo](GetAll)
+    .resource[Foo](GetAll, Post)
     .resource[Currency](GetAll)
     .resource[ExchangeRate](GetAll, Post)
 }
 
 object RestApp extends FinatraServer {
-  register(new RestfulControllerExample(new JsonOnFileSystem(Directory("src/test/resources"))))
+  val serialiser = new Json4sSerialiser
+  val persister = new JsonOnFileSystem(Directory("src/test/resources"), serialiser)
+  register(new RestfulControllerExample(serialiser, persister))
 }

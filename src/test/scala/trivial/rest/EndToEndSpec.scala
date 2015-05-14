@@ -6,6 +6,7 @@ import org.jboss.netty.handler.codec.http.HttpHeaders.Names._
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 import trivial.rest.TestDirectories._
 import trivial.rest.persistence.{FileSystem, JsonOnFileSystem}
+import trivial.rest.serialisation.Json4sSerialiser
 
 import scala.reflect.io.{File, Directory}
 
@@ -17,7 +18,8 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper with Befor
   val existingCurrencies = """{"id":"1","rate":33.3,"currency":"2"},{"id":"2","rate":44.4,"currency":"3"}"""
 
   override def server = new FinatraServer {
-    register(new RestfulControllerExample(new JsonOnFileSystem(provisionedTestDir)))
+    private val serialiser = new Json4sSerialiser
+    register(new RestfulControllerExample(serialiser, new JsonOnFileSystem(provisionedTestDir, serialiser)))
   }
 
   "Charset for JSON data is UTF-8" in {

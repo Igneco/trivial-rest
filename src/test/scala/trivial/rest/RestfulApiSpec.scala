@@ -1,19 +1,17 @@
 package trivial.rest
 
-import java.util.concurrent.atomic.{AtomicIntegerArray, AtomicInteger}
-
 import com.twitter.finagle.http.MediaType
-import com.twitter.finatra.Controller
 import com.twitter.finatra.test.MockApp
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names
 import org.json4s.Formats
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 import trivial.rest.TestDirectories._
-import trivial.rest.configuration.Config
 import trivial.rest.persistence.Persister
+import trivial.rest.serialisation.Serialiser
 
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll with MockFactory {
 
@@ -30,98 +28,45 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
 
-  "Registering a resource type as a GetAll allows bulk download" in {
+  "Registering a resource type for GET All allows bulk download of JSON data" in {
     val fixture = new RestApiFixture()
 
-    fixture.persister_expects_loadAll("foo", Right(Seq(
+    val foos = Seq(
       Foo(Some("1"), "bar"),
       Foo(Some("2"), "baz"),
       Foo(Some("3"), "bazaar")
-    )))
+    )
+
+    fixture.persister_expects_loadAll("foo", Right(foos))
+    fixture.serialiser_expects_serialise[Foo]
 
     val response = fixture.app.get("/foo")
 
-    response.body must equal("""[{"id":"1","bar":"bar"},{"id":"2","bar":"baz"},{"id":"3","bar":"bazaar"}]""")
+    response.body must equal("<A serialised Foo>")
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
 
-  "We can send responses in flat id-referenced form" in {
-    val fixture = new RestApiFixture(Config(flattenNestedResources = true))
-
-    implicit def toBigDecimal(str: String): BigDecimal = BigDecimal(str)
-    val vector = Vector(Some("24"), "79", "0.4")
-    val spaceship = Spaceship(Some("1"), "Enterprise", 150, vector)
-
-    fixture.persister_expects_loadAll("spaceship", Right(Seq(spaceship)))
-
-    val response = fixture.app.get("/spaceship")
-
-    response.body must equal("""[{"id":"1","name":"Enterprise","personnel":150,"bearing":"24"}]""")
-    response.code must equal(200)
-    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
-  }
-
-  "TODO - We can send responses in nested form" in {
-    pending
-    val fixture = new RestApiFixture(Config(flattenNestedResources = false))
-  }
-
-  "We can accept input in flat id-referenced form" in {
+  "POSTing a new item saves it to the persister" in {
     val fixture = new RestApiFixture()
-    fixture.persister_expects_save("spaceship", Seq(Spaceship(Some("1"), "Enterprise", 150, Vector(Some("1"), BigDecimal("33.3"), BigDecimal("1.4")))))
-    fixture.persister_expects_nextSequenceNumber(1)
-    fixture.persister_expects_loadAll("vector", Right(Seq(Vector(Some("1"), BigDecimal("33.3"), BigDecimal("1.4")))))
+    val foo = Foo(None, "Baz")
+    fixture.persister_expects_nextSequenceNumber(555)
+    fixture.persister_expects_save("spaceship", Seq(foo.withId("555")))
+    fixture.serialiser_expects_deserialise[Foo]("<A serialised Foo>", Seq(foo))
 
-    val response = fixture.app.post(s"/spaceship", body = """[{"name":"Enterprise","personnel":150,"bearing":"1"}]""")
+    val response = fixture.app.post(s"/spaceship", body = "<A serialised Foo>")
 
     response.body must equal("""{"addedCount":"1"}""")
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
 
-  "We can accept input in nested form" in {
-    // post "[{"id":"7","name":"Enterprise","personnel":150,"bearing":{"id":"24","angle":79,"magnitude":0.4}}]"
-    pending
-  }
-
-  "We can choose to check that flat references to other resources exist, or to ignore them" in {
-    pending
-  }
-
-  "We can choose to check that nested resources exist, or to ignore them" in {
-    pending
-  }
-
-  "We can serialise (to an HTTP response) a resource which embeds another resource" in {
+  "POSTing a new item request an ID for it from the Persister" in {
     val fixture = new RestApiFixture()
 
-    fixture.persister_expects_loadAll("exchangerate", Right(Seq(
-      ExchangeRate(Some("1"), BigDecimal("33.3"), Currency(Some("22"), "GBP", "£"))
-    )))
+    fixture.persister_expects_nextSequenceNumber(666)
 
-    val response = fixture.app.get("/exchangerate")
-
-    response.body must equal("""[{"id":"1","rate":33.3,"currency":"22"}]""")
-    response.code must equal(200)
-    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
-  }
-
-  "We can deserialise characters such as € and £ into non-escaped unicode Strings" in {
-    pending
-    val fixture = new RestApiFixture()
-
-    fixture.persister_expects_loadAll("currency", Right(Seq(
-      Currency(Some("1"), "EUR", "€"),
-      Currency(Some("2"), "GBP", "£"),
-      Currency(Some("3"), "USD", "$")
-    )))
-
-    val response = fixture.app.get("/currency")
-
-    response.body must equal("""[{"id":"1","isoName":"EUR","symbol":"€"},{"id":"2","isoName":"GBP","symbol":"£"},{"id":"3","isoName":"USD","symbol":"$"}]""")
-    response.code must equal(200)
-    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
+    fixture.app.post(s"/planet", body = """[{"name": "Earth", "classification": "tolerable"}]""")
   }
 
   "We send back a 404 for Resource types we don't support" in {
@@ -130,71 +75,41 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
     // TODO - CAS - 20/04/15 - Test this for PUT, POST, etc
     val response = app.get(s"/petName")
 
-    response.code must equal(404)
     response.body must equal("Resource type not supported: petName")
-  }
-
-  "POSTing a new item creates a unique ID for it" in {
-    val fixture = new RestApiFixture()
-
-    fixture.persister_expects_nextSequenceNumber(666)
-    fixture.persister_expects_save("planet", Seq(Planet(Some("666"), "Earth", "tolerable")))
-
-    fixture.app.post(s"/planet", body = """[{"name": "Earth", "classification": "tolerable"}]""")
-  }
-
-  "POSTing new items returns a count of the number of items added" in {
-    val fixture = new RestApiFixture()
-    fixture.persister_expects_nextSequenceNumber(10)
-    fixture.persister_expects_save("planet", Seq(Planet(Some("10"), "Earth", "tolerable")))
-
-    val response = fixture.app.post(s"/planet", body = """[{"name": "Earth", "classification": "tolerable"}]""")
-
-    response.body must equal("""{"addedCount":"1"}""")
-    response.code must equal(200)
-    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
+    response.code must equal(404)
   }
 
   "You can't POST an item with an ID - the system will allocate an ID upon resource creation" in {
-    val app = new RestApiFixture().app
+    val fixture = new RestApiFixture()
+    fixture.serialiser_expects_deserialise[Planet]("<A serialised Planet>", Seq(Planet(Some("123"), "Earth", "tolerable")))
 
-    val response = app.post(s"/planet", body = """[{"id": "123", "name": "Earth", "classification": "tolerable"}]""")
+    val response = fixture.app.post(s"/planet", body = "<A serialised Planet>")
 
-    response.code must equal(403)
     response.body must equal("You can't POST an item with an ID - the system will allocate an ID upon resource creation")
+    response.code must equal(403)
   }
 
-  "We can POST many items at once to be persisted" in {
+  "POSTing items returns an updated count" in {
     val fixture = new RestApiFixture()
-    fixture.persister_expects_nextSequenceNumber(1,2)
-    fixture.persister_expects_save("planet", Seq(
+
+    val somePlanets = Seq(
+      Planet(None, "Mercury", "bloody hot"),
+      Planet(None, "Venus", "also bloody hot")
+    )
+
+    val somePlanetsWithIds = Seq(
       Planet(Some("1"), "Mercury", "bloody hot"),
       Planet(Some("2"), "Venus", "also bloody hot")
-    ))
+    )
 
-    val postResponse = fixture.app.post(s"/planet", body = """[
-                                                     |  {"name": "Mercury", "classification": "bloody hot"},
-                                                     |  {"name": "Venus", "classification": "also bloody hot"}
-                                                     |]""".stripMargin)
+    fixture.serialiser_expects_deserialise[Planet]("<Some serialised Planets>", somePlanets)
+    fixture.persister_expects_nextSequenceNumber(1,2)
+    fixture.persister_expects_save("planet", somePlanetsWithIds)
+
+    val postResponse = fixture.app.post(s"/planet", body = "<Some serialised Planets>")
 
     postResponse.body must equal("""{"addedCount":"2"}""")
     postResponse.code must equal(200)
-  }
-
-  "Each successive item gets a new, unique, sequence ID" in {
-    val fixture = new RestApiFixture()
-    fixture.persister_expects_save("planet", Seq(Planet(Some("1"), "Earth", "tolerable")))
-    fixture.persister_expects_save("planet", Seq(Planet(Some("2"), "Mars", "chilly")))
-    fixture.persister_expects_save("planet", Seq(Planet(Some("3"), "Uranus", "a little dark")))
-
-    fixture.persister_expects_nextSequenceNumber(1,2,3)
-
-    val r1 = fixture.app.post(s"/planet", body = """[{"name": "Earth","classification": "tolerable"}]""")
-    r1.body must equal("""{"addedCount":"1"}""")
-    val r2 = fixture.app.post(s"/planet", body = """[{"name": "Mars","classification": "chilly"}]""")
-    r2.body must equal("""{"addedCount":"1"}""")
-    val r3 = fixture.app.post(s"/planet", body = """[{"name": "Uranus","classification": "a little dark"}]""")
-    r3.body must equal("""{"addedCount":"1"}""")
   }
 
   "Return a 405 for HTTP methods that are not supported" in {
@@ -215,13 +130,44 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
   }
 
   // TODO - CAS - 27/04/15:
-  // Remove the .json suffix in the URL, if that is all we are going to support
-  // Caching
+  // Caching spec
 
-  class RestApiFixture(config: Config = Config()) {
+  class RestApiFixture() {
     val persisterMock: Persister = mock[Persister]
-    val controllerWithRest = new RestfulControllerExample(persisterMock)
+    val formats: Formats = mock[Formats]
+    val serialiserMock: Serialiser = mock[Serialiser]
+    serialiser_expects_registerResource[Spaceship]
+    serialiser_expects_registerResource[Vector]
+    serialiser_expects_registerResource[Planet]
+    serialiser_expects_registerResource[ExchangeRate]
+    serialiser_expects_registerResource[Foo]
+    serialiser_expects_registerResource[Currency]
+
+    serialiser_expects_formatsExcept[Spaceship]
+    serialiser_expects_formatsExcept[Vector]
+    serialiser_expects_formatsExcept[Planet]
+    serialiser_expects_formatsExcept[ExchangeRate]
+    serialiser_expects_formatsExcept[Foo]
+    serialiser_expects_formatsExcept[Currency]
+
+    val controllerWithRest = new RestfulControllerExample(serialiserMock, persisterMock)
     val app = MockApp(controllerWithRest)
+
+    def serialiser_expects_registerResource[T <: Resource[T] : ClassTag] = {
+      (serialiserMock.registerResource[T] (_: Formats => Either[Failure, Seq[T]])(_: ClassTag[T])).expects(*,*)
+    }
+
+    def serialiser_expects_formatsExcept[T <: Resource[T] : ClassTag] = {
+      (serialiserMock.formatsExcept[T] (_: ClassTag[T])).expects(*).returning(formats).anyNumberOfTimes()
+    }
+
+    def serialiser_expects_serialise[T <: Resource[T] : ClassTag] = {
+      (serialiserMock.serialise[T](_: Seq[T])(_: ClassTag[T])).expects(*, *).returning(s"<A serialised ${Classy.name[T]}>")
+    }
+
+    def serialiser_expects_deserialise[T <: Resource[T] : ClassTag](body: String, returns: Seq[T]) = {
+      (serialiserMock.deserialise[T](_: String)(_: Manifest[T])).expects(body, *).returning(Right(returns))
+    }
 
     def persister_expects_loadAll[T <: Resource[T]](expectedParam: String, returns: Either[Failure, Seq[T]]) = {
       (persisterMock.loadAll[T](_: String)(_: Manifest[T], _: Formats)).expects(expectedParam, *, *).returning(returns)
@@ -238,3 +184,42 @@ class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll w
     }
   }
 }
+
+/*
+It went horribly wrong: org.scalatest.exceptions.TestFailedException: Unexpected call:
+
+save(spaceship, List(), trivial.rest.Spaceship)
+save(spaceship, List(Spaceship(Some(1),Enterprise,150,Vector(Some(1),33.3,1.4))), *, *)
+
+Expected:
+inAnyOrder {
+  registerResource(*, *) once (called once)
+  registerResource(*, *) once (called once)
+  registerResource(*, *) once (called once)
+  registerResource(*, *) once (called once)
+  registerResource(*, *) once (called once)
+  registerResource(*, *) once (called once)
+  formatsExcept(*) any number of times (called once)
+  formatsExcept(*) any number of times (never called)
+  formatsExcept(*) any number of times (never called)
+  formatsExcept(*) any number of times (never called)
+  formatsExcept(*) any number of times (never called)
+  formatsExcept(*) any number of times (never called)
+  save(spaceship, List(Spaceship(Some(1),Enterprise,150,Vector(Some(1),33.3,1.4))), *, *) once (never called - UNSATISFIED)
+  nextSequenceNumber() any number of times (never called)
+  loadAll(vector, *, *) once (never called - UNSATISFIED)
+  deserialise(*, *) once (called once)
+}
+
+Actual:
+  registerResource(<function1>, trivial.rest.Spaceship)
+  registerResource(<function1>, trivial.rest.Vector)
+  registerResource(<function1>, trivial.rest.Planet)
+  registerResource(<function1>, trivial.rest.Foo)
+  registerResource(<function1>, trivial.rest.Currency)
+  registerResource(<function1>, trivial.rest.ExchangeRate)
+  deserialise([{"name":"Enterprise","personnel":150,"bearing":"1"}], trivial.rest.Spaceship)
+  formatsExcept(trivial.rest.Spaceship)
+  save(spaceship, List(), trivial.rest.Spaceship, trivial.rest.RestfulApiSpec$RestApiFixture$$anon$2@35e5d0e5)
+
+*/
