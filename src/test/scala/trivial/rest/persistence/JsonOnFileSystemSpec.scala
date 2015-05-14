@@ -9,7 +9,7 @@ import trivial.rest.serialisation.{Serialiser, Json4sSerialiser, ResourceSeriali
 import trivial.rest._
 
 import scala.reflect.ClassTag
-import scala.reflect.io.{Directory, File}
+import scala.reflect.io.{Path, Directory, File}
 
 class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfterAll with MockFactory {
 
@@ -26,27 +26,23 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
 
   "We can loadAll when the data file exists but is empty" in {
     val docRoot = nextTestDir
-    File(docRoot / "foo.json")
-      .createFile()
-      .writeAll( "[]")
+    writeTestData("[]", docRoot / "foo.json")
 
     new JsonOnFileSystem(docRoot, serialiser).loadAll("foo") mustEqual Right(Seq[Foo]())
   }
 
+  def writeTestData(data: String, target: Path) = File(target).createFile().writeAll(data)
+
   "We can loadAll" in {
     val docRoot = nextTestDir
-    File(docRoot / "foo.json")
-      .createFile()
-      .writeAll( """[{"id":"1","bar":"bar"}]""")
+    writeTestData( """[{"id":"1","bar":"bar"}]""", docRoot / "foo.json")
 
     new JsonOnFileSystem(docRoot, serialiser).loadAll[Foo]("foo") mustEqual Right(Seq(Foo(Some("1"), "bar")))
   }
 
   "We delegate deserialisation to the Serialiser" in {
     val docRoot = nextTestDir
-    File(docRoot / "exchangerate.json")
-      .createFile()
-      .writeAll("<Stuff loaded from disk>")
+    writeTestData("<Stuff loaded from disk>", docRoot / "exchangerate.json")
 
     val expected = Seq(
       ExchangeRate(Some("1"), 33.3, Currency(Some("2"), "GBP", "£")),
