@@ -41,4 +41,12 @@ class MemoSpec extends WordSpec with MustMatchers {
       this.cacheOfCaches.size mustEqual 3
     }
   }
+
+  "We can blat a cache programmatically" in {
+    pending
+  }
+
+  "We can update an individual cached value" in {
+    pending
+  }
 }
