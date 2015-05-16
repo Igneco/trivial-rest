@@ -4,16 +4,18 @@ import org.apache.commons.io.FileUtils._
 import org.json4s.Formats
 import org.json4s.native.Serialization
 import trivial.rest.caching.Memo._
+import trivial.rest.caching.{Cache, Memo2}
 import trivial.rest.serialisation.Serialiser
 import trivial.rest.{Failure, Resource}
 
 import scala.reflect.io.{Directory, File}
 
-class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persister {
+class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persister with Memo2 {
 
-  override def loadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]] = {
-    // if (cached(resourceName))
-    //   cache(resourceName) else
+  override def loadAll[T <: Resource[T] : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]] =
+    memra { (resName: String) => actuallyLoadAll[T](resName) }(resourceName)
+
+  def actuallyLoadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]] = {
     if (hasLocalFile(fileFor(resourceName)))
       serialiser.deserialise(fromDisk(resourceName))
     else
