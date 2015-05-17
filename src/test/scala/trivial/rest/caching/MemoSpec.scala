@@ -7,7 +7,7 @@ class MemoSpec extends WordSpec with MustMatchers {
     var expensiveCallCount = 0
 
     class MemoDemo extends Memo {
-      val func = (input: String) => {
+      private val func = (input: String) => {
         expensiveCallCount = expensiveCallCount + 1
         input.toUpperCase
       }
@@ -43,10 +43,48 @@ class MemoSpec extends WordSpec with MustMatchers {
   }
 
   "We can blat a cache programmatically" in {
-    pending
+    var expensiveCallCount = 0
+
+    new Memo {
+      val func = (input: String) => {
+        expensiveCallCount = expensiveCallCount + 1
+        input.toUpperCase
+      }
+
+      memo { func } ("a")
+      memo { func } ("a")
+      memo { func } ("a")
+      memo { func } invalidate()
+      memo { func } ("a")
+    }
+
+    expensiveCallCount mustEqual 2
   }
 
   "We can update an individual cached value" in {
-    pending
+    fail("Monkeys")
+  }
+
+  "How to memoise methods" in {
+    var expensiveCallCount = 0
+
+    class MemoDemo extends Memo {
+      private def method(input: String) = {
+        expensiveCallCount = expensiveCallCount + 1
+        input.toUpperCase
+      }
+
+      // Only works if declared outside the call to memo {}
+      val f = method _
+
+      def memoised(input: String) = memo { f } (input)
+    }
+
+    val demo = new MemoDemo
+    demo.memoised("a") mustEqual "A"
+    demo.memoised("a") mustEqual "A"
+    demo.memoised("a") mustEqual "A"
+
+    expensiveCallCount mustEqual 1
   }
 }
