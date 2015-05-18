@@ -40,7 +40,15 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
     new JsonOnFileSystem(docRoot, serialiser).loadAll[Foo]("foo") mustEqual Right(Seq(Foo(Some("1"), "bar")))
   }
 
-  "We delegate deserialisation to the Serialiser" in {
+  trait MockedSerialiser {
+    val serialiserMock: Serialiser = mock[Serialiser]
+
+    def serialiser_expects_deserialise[T <: Resource[T] : ClassTag](body: String, returns: Seq[T]) = {
+      (serialiserMock.deserialise[T](_: String)(_: Manifest[T])).expects(body, *).returning(Right(returns))
+    }
+  }
+
+  "We delegate deserialisation to the Serialiser" in new MockedSerialiser {
     val docRoot = nextTestDir
     writeTestData("<Stuff loaded from disk>", docRoot / "exchangerate.json")
 
@@ -49,16 +57,28 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfte
       ExchangeRate(Some("2"), 44.4, Currency(Some("3"), "USD", "$"))
     )
 
-    val serialiserMock: Serialiser = mock[Serialiser]
-
     val jofs = new JsonOnFileSystem(docRoot, serialiserMock)
-
-    def serialiser_expects_deserialise[T <: Resource[T] : ClassTag](body: String, returns: Seq[T]) = {
-      (serialiserMock.deserialise[T](_: String)(_: Manifest[T])).expects(body, *).returning(Right(returns))
-    }
 
     serialiser_expects_deserialise("<Stuff loaded from disk>", expected)
 
+    jofs.loadAll[ExchangeRate]("exchangerate")
+  }
+
+  "Memoising loadAll means we only hit the serialiser once per type" in new MockedSerialiser {
+    val docRoot = nextTestDir
+    writeTestData("<Stuff loaded from disk>", docRoot / "exchangerate.json")
+
+    val expected = Seq(
+      ExchangeRate(Some("1"), 33.3, Currency(Some("2"), "GBP", "£")),
+      ExchangeRate(Some("2"), 44.4, Currency(Some("3"), "USD", "$"))
+    )
+
+    val jofs = new JsonOnFileSystem(docRoot, serialiserMock)
+
+    serialiser_expects_deserialise("<Stuff loaded from disk>", expected).once()
+
+    jofs.loadAll[ExchangeRate]("exchangerate")
+    jofs.loadAll[ExchangeRate]("exchangerate")
     jofs.loadAll[ExchangeRate]("exchangerate")
   }
 

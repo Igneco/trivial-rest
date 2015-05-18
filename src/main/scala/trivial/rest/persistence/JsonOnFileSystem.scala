@@ -12,7 +12,7 @@ import scala.reflect.io.{Directory, File}
 class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persister with Memo {
 
   override def loadAll[T <: Resource[T] : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]] =
-    memo { (resName: String) => actuallyLoadAll[T](resName) }(resourceName)
+    memo(resourceName) { actuallyLoadAll[T] }(resourceName)
 
   def actuallyLoadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]] = {
     if (hasLocalFile(fileFor(resourceName)))
@@ -25,6 +25,7 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
     val resourceFile = assuredFile(docRoot, resourceName)
 
     // TODO - CAS - 06/05/15 - Invalidate the cache of T
+    memo(resourceName) { actuallyLoadAll[T] }.invalidate()
 
     loadAll[T](resourceName).right.map { previousItems =>
       resourceFile.writeAll(Serialization.write(previousItems ++ newItems))

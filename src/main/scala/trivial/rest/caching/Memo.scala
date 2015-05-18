@@ -1,6 +1,6 @@
 package trivial.rest.caching
 
-import collection.mutable.Map
+import scala.collection.mutable
 
 /**
  * Usage:
@@ -17,7 +17,7 @@ import collection.mutable.Map
  * }
  */
 trait Memo {
-  val cacheOfCaches = Map.empty[Function1[_, _], Cache[_, _]]
+  val cacheOfCaches = mutable.Map.empty[Any, Cache[_, _]]
 
   /**
    * BEWARE - if you want to convert a method to a function, you must assign the function
@@ -27,17 +27,18 @@ trait Memo {
    * val f = method _
    * def memoised(input: String) = memo { f } (input)
    *
+   * @param key A name or number or object to identify this cache
    * @param f the function to memoise
    * @tparam I the input parameter type of function f
    * @tparam O the output type of function f
    * @return a Cache[I, O]
    */
-  def memo[I, O](f: I => O): Cache[I, O] =
-    cacheOfCaches.getOrElseUpdate(f, Cache[I, O](f)).asInstanceOf[Cache[I, O]]
+  def memo[I, O](key: Any)(f: I => O): Cache[I, O] =
+    cacheOfCaches.getOrElseUpdate(key, Cache[I, O](f)).asInstanceOf[Cache[I, O]]
 }
 
 case class Cache[I, O](f: I => O) extends (I => O) {
-  val cache = Map.empty[I, O]
+  val cache = mutable.Map.empty[I, O]
 
   def apply(x: I) = cache getOrElseUpdate (x, f(x))
 

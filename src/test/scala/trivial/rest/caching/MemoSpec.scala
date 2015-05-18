@@ -12,7 +12,7 @@ class MemoSpec extends WordSpec with MustMatchers {
         input.toUpperCase
       }
 
-      def memoised(input: String) = memo { func } (input)
+      def memoised(input: String) = memo (this) { func } (input)
     }
 
     val demo = new MemoDemo
@@ -25,18 +25,20 @@ class MemoSpec extends WordSpec with MustMatchers {
     expensiveCallCount mustEqual 2
   }
 
-  "We allocate new memoisation caches using the function as a key" in {
+  "We can allocate new memoisation caches using the function as a key" in {
+    // BEWARE - the compiler requires functions to be assigned to vals, otherwise multiple
+    // instances of the same function will result in multiple caches, i.e. no benefit.
     new Memo {
       val func1 = (input: String) => { input.toUpperCase }
       val func2 = (input: String) => { input.toLowerCase }
       val func3 = (input: String) => { input }
 
-      memo { func1 }
-      memo { func2 }
-      memo { func3 }
-      memo { func1 }
-      memo { func1 }
-      memo { func1 }
+      memo (func1) { func1 }
+      memo (func2) { func2 }
+      memo (func3) { func3 }
+      memo (func1) { func1 }
+      memo (func1) { func1 }
+      memo (func1) { func1 }
 
       this.cacheOfCaches.size mustEqual 3
     }
@@ -51,18 +53,19 @@ class MemoSpec extends WordSpec with MustMatchers {
         input.toUpperCase
       }
 
-      memo { func } ("a")
-      memo { func } ("a")
-      memo { func } ("a")
-      memo { func } invalidate()
-      memo { func } ("a")
+      memo (this) { func } ("a")
+      memo (this) { func } ("a")
+      memo (this) { func } ("a")
+      memo (this) { func } invalidate()
+      memo (this) { func } ("a")
     }
 
     expensiveCallCount mustEqual 2
   }
 
   "We can update an individual cached value" in {
-    fail("Monkeys")
+    pending
+//    fail("Monkeys")
   }
 
   "How to memoise methods" in {
@@ -77,7 +80,7 @@ class MemoSpec extends WordSpec with MustMatchers {
       // Only works if declared outside the call to memo {}
       val f = method _
 
-      def memoised(input: String) = memo { f } (input)
+      def memoised(input: String) = memo ("myMethod") { f } (input)
     }
 
     val demo = new MemoDemo
