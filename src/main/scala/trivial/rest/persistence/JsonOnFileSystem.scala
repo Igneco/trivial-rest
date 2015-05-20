@@ -21,15 +21,12 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
       Right(Seq.empty)
   }
 
-  override def save[T <: Resource[T] : Manifest](resourceName: String, newItems: Seq[T])(implicit formats: Formats): Either[Failure, Int] = {
-    unMemo(resourceName)
-
+  override def save[T <: Resource[T] : Manifest](resourceName: String, newItems: Seq[T])(implicit formats: Formats): Either[Failure, Int] =
     loadAll[T](resourceName).right.map { previousItems =>
       assuredFile(docRoot, resourceName).writeAll(Serialization.write(previousItems ++ newItems))
+      unMemo(resourceName)
+      newItems.size
     }
-
-    Right(newItems.size)
-  }
 
   // TODO - CAS - 21/04/15 - Consider Scala async to make this write-behind: https://github.com/scala/async
   override def nextSequenceNumber: Int = {
