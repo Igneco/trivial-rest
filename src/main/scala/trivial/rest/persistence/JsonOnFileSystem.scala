@@ -14,7 +14,7 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
   override def loadAll[T <: Resource[T] : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]] =
     memo(resourceName) { actuallyLoadAll[T] }(resourceName)
 
-  def actuallyLoadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]] = {
+  private def actuallyLoadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String)(implicit formats: Formats): Either[Failure, Seq[T]] = {
     if (hasLocalFile(fileFor(resourceName)))
       serialiser.deserialise(fromDisk(resourceName))
     else
@@ -32,7 +32,6 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
   }
 
   // TODO - CAS - 21/04/15 - Consider Scala async to make this write-behind: https://github.com/scala/async
-  // TODO - CAS - 21/04/15 - Make this less ugly
   override def nextSequenceNumber: Int = {
     val targetFile = assuredFile(docRoot, "_sequence", "0")
     val previous = targetFile.slurp().toInt
