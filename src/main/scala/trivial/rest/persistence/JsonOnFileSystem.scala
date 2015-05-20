@@ -22,13 +22,10 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
   }
 
   override def save[T <: Resource[T] : Manifest](resourceName: String, newItems: Seq[T])(implicit formats: Formats): Either[Failure, Int] = {
-    val resourceFile = assuredFile(docRoot, resourceName)
-
-    // TODO - CAS - 06/05/15 - Invalidate the cache of T
-    memo(resourceName) { actuallyLoadAll[T] }.invalidate()
+    unMemo(resourceName)
 
     loadAll[T](resourceName).right.map { previousItems =>
-      resourceFile.writeAll(Serialization.write(previousItems ++ newItems))
+      assuredFile(docRoot, resourceName).writeAll(Serialization.write(previousItems ++ newItems))
     }
 
     Right(newItems.size)

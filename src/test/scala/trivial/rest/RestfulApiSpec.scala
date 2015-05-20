@@ -13,10 +13,7 @@ import trivial.rest.serialisation.Serialiser
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-class RestfulApiSpec extends WordSpec with MustMatchers with BeforeAndAfterAll with MockFactory {
-
-  override protected def beforeAll() = cleanTestDirs()
-  override protected def afterAll()  = beforeAll()
+class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
 
   "The root path provides a not-quite-hypertext list of supported resource types" in {
     val fixture = new RestApiFixture()

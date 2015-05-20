@@ -11,7 +11,6 @@ object TestDirectories {
   private val suffix = new AtomicInteger(1)
   def nextTestDirPath = s"target/jofs/${base}-${suffix.incrementAndGet()}"
   def nextTestDir = Directory(nextTestDirPath).createDirectory()
-  def cleanTestDirs() = Directory(s"target/jofs").deleteRecursively()
   def provisionedTestDir = {
     val docRoot = Directory(nextTestDir)
     docRoot.createDirectory()

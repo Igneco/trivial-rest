@@ -28,20 +28,22 @@ class MemoSpec extends WordSpec with MustMatchers {
   "We can allocate new memoisation caches using the function as a key" in {
     // BEWARE - the compiler requires functions to be assigned to vals, otherwise multiple
     // instances of the same function will result in multiple caches, i.e. no benefit.
-    new Memo {
+    val demo = new Memo {
       val func1 = (input: String) => { input.toUpperCase }
       val func2 = (input: String) => { input.toLowerCase }
       val func3 = (input: String) => { input }
-
-      memo (func1) { func1 }
-      memo (func2) { func2 }
-      memo (func3) { func3 }
-      memo (func1) { func1 }
-      memo (func1) { func1 }
-      memo (func1) { func1 }
-
-      this.cacheOfCaches.size mustEqual 3
     }
+
+    import demo._
+
+    memo { func1 }
+    memo { func2 }
+    memo { func3 }
+    memo { func1 }
+    memo { func1 }
+    memo { func1 }
+
+    cacheOfCaches.size mustEqual 3
   }
 
   "We can blat a cache programmatically" in {
@@ -89,5 +91,37 @@ class MemoSpec extends WordSpec with MustMatchers {
     demo.memoised("a") mustEqual "A"
 
     expensiveCallCount mustEqual 1
+  }
+
+  "How NOT to memoise methods" in {
+    var expensiveCallCount = 0
+
+    class MemoDemo extends Memo {
+      private def method(input: String) = {
+        expensiveCallCount = expensiveCallCount + 1
+        input.toUpperCase
+      }
+
+      // Assignment is inside the method, and f gets a new hashCode each time
+      def wrongOne(input: String) = memo {
+        val f = method _
+        f
+      } (input)
+
+      // Assignment is still inside the method, and f still gets a new hashCode each time
+      def wrongTwo(input: String) = {
+        val f = method _
+        memo { f } (input)
+      }
+    }
+
+    val demo = new MemoDemo
+    demo.wrongOne("a") mustEqual "A"
+    demo.wrongOne("a") mustEqual "A"
+    expensiveCallCount mustEqual 2
+
+    demo.wrongTwo("a") mustEqual "A"
+    demo.wrongTwo("a") mustEqual "A"
+    expensiveCallCount mustEqual 4
   }
 }

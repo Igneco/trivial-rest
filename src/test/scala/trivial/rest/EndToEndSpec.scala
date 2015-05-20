@@ -10,16 +10,14 @@ import trivial.rest.serialisation.Json4sSerialiser
 
 import scala.reflect.io.{File, Directory}
 
-class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper with BeforeAndAfterAll {
-
-  override protected def beforeAll() = cleanTestDirs()
-  override protected def afterAll()  = beforeAll()
+class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
 
   val existingCurrencies = """{"id":"1","rate":33.3,"currency":"2"},{"id":"2","rate":44.4,"currency":"3"}"""
 
   override def server = new FinatraServer {
     private val serialiser = new Json4sSerialiser
-    register(new RestfulControllerExample(serialiser, new JsonOnFileSystem(provisionedTestDir, serialiser)))
+    private val testDir = provisionedTestDir
+    register(new RestfulControllerExample(serialiser, new JsonOnFileSystem(testDir, serialiser)))
   }
 
   "Charset for JSON data is UTF-8" in {
@@ -36,7 +34,6 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper with Befor
 
   "We can post an ExchangeRate" in {
     val newCurrency = """[{"rate":55.5,"currency":"1"}]"""
-    val newCurrencyWithId = """{"id":"101","rate":55.5,"currency":"1"}"""
 
     post("/exchangerate", body = newCurrency)
 

@@ -11,10 +11,7 @@ import trivial.rest._
 import scala.reflect.ClassTag
 import scala.reflect.io.{Path, Directory, File}
 
-class JsonOnFileSystemSpec extends WordSpec with MustMatchers with BeforeAndAfterAll with MockFactory {
-
-  override protected def beforeAll() = cleanTestDirs()
-  override protected def afterAll()  = beforeAll()
+class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
 
   implicit val formats: Formats = Serialization.formats(NoTypeHints)
   val serialiser = new Json4sSerialiser
