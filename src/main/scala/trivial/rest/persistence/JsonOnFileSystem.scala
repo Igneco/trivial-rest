@@ -1,5 +1,7 @@
 package trivial.rest.persistence
 
+import java.util.Locale
+
 import org.apache.commons.io.FileUtils._
 import org.json4s.Formats
 import org.json4s.native.Serialization
@@ -33,9 +35,11 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
     val targetFile = assuredFile(docRoot, "_sequence", "0")
     val previous = targetFile.slurp().toInt
     val next = previous + 1
-    targetFile.writeAll(next.toString)
-    s"$next"
+    targetFile.writeAll(s"$next")
+    formatSequenceId(next)
   }
+
+  override def formatSequenceId(id: Int): String = f"$id%07d"
 
   // TODO - CAS - 14/05/15 - Extract FS methods to a separate FileSystem dependency?
 

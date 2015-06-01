@@ -113,12 +113,12 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
     File(docRoot / "foo.json").slurp() mustEqual """[{"id":"1","bar":"bar"},{"id":"2","bar":"baz"}]"""
   }
 
-  "Each successive item gets a new, unique, sequence ID" in {
+  "Each successive item gets a new, unique, zero-padded sequence ID" in {
     val docRoot = nextTestDir
     val jofs = new JsonOnFileSystem(docRoot, serialiser)
 
-    jofs.nextSequenceId mustBe "1"
-    jofs.nextSequenceId mustBe "2"
+    jofs.nextSequenceId mustBe "0000001"
+    jofs.nextSequenceId mustBe "0000002"
   }
 
   // "Adding a second record appends to the data file" in {}
