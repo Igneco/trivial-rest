@@ -49,6 +49,12 @@ class Json4sSerialiser extends Serialiser {
         No usable value for isoName
         Did not find value which can be converted into java.lang.String
 
+        (3)
+        // Extract is looking for a field name in the target case class, to match the value
+        // in the JSON. The field isn't there, or has a different name.
+
+        Caused by: org.json4s.package$MappingException: Did not find value which can be converted into java.lang.String
+
   TODO - CAS - 01/05/15 - Try parsing the JSON AST, and showing that, for MappingException, which is about converting AST -> T
         */
   override def deserialise[T <: Resource[T] : Manifest](body: String): Either[Failure, Seq[T]] =
