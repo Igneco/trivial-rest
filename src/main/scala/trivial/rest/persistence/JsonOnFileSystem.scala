@@ -29,12 +29,12 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
     }
 
   // TODO - CAS - 21/04/15 - Consider Scala async to make this write-behind: https://github.com/scala/async
-  override def nextSequenceNumber: Int = {
+  override def nextSequenceId: String = {
     val targetFile = assuredFile(docRoot, "_sequence", "0")
     val previous = targetFile.slurp().toInt
     val next = previous + 1
     targetFile.writeAll(next.toString)
-    next
+    s"$next"
   }
 
   // TODO - CAS - 14/05/15 - Extract FS methods to a separate FileSystem dependency?

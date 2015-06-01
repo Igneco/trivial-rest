@@ -117,8 +117,8 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
     val docRoot = nextTestDir
     val jofs = new JsonOnFileSystem(docRoot, serialiser)
 
-    jofs.nextSequenceNumber mustBe 1
-    jofs.nextSequenceNumber mustBe 2
+    jofs.nextSequenceId mustBe "1"
+    jofs.nextSequenceId mustBe "2"
   }
 
   // "Adding a second record appends to the data file" in {}

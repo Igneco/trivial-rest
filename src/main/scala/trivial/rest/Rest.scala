@@ -84,7 +84,7 @@ class Rest(uriRoot: String,
       val persisted: Either[Failure, String] = try {
         val deserialisedT: Either[Failure, Seq[T]] = serialiser.deserialise(request.getContentString())
         val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
-        val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(s"${persister.nextSequenceNumber}")))
+        val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(persister.nextSequenceId)))
 
         // TODO - CAS - 12/05/15 - Push the serialiser.formatsExcept[T] dependency into the persister
         val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(pj => persister.save(resourceName, pj)(implicitly[Manifest[T]], serialiser.formatsExcept[T]))

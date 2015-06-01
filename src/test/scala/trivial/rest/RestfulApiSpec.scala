@@ -47,7 +47,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
   "POSTing a new item saves it to the persister" in {
     val fixture = new RestApiFixture()
     val foo = Foo(None, "Baz")
-    fixture.persister_expects_nextSequenceNumber(555)
+    fixture.persister_expects_nextSequenceNumber("555")
     fixture.persister_expects_save("spaceship", Seq(foo.withId("555")))
     fixture.serialiser_expects_deserialise[Foo]("<A serialised Foo>", Seq(foo))
 
@@ -61,7 +61,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
   "POSTing a new item request an ID for it from the Persister" in {
     val fixture = new RestApiFixture()
 
-    fixture.persister_expects_nextSequenceNumber(666)
+    fixture.persister_expects_nextSequenceNumber("666")
 
     fixture.app.post(s"/planet", body = """[{"name": "Earth", "classification": "tolerable"}]""")
   }
@@ -100,7 +100,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     )
 
     fixture.serialiser_expects_deserialise[Planet]("<Some serialised Planets>", somePlanets)
-    fixture.persister_expects_nextSequenceNumber(1,2)
+    fixture.persister_expects_nextSequenceNumber("1", "2")
     fixture.persister_expects_save("planet", somePlanetsWithIds)
 
     val postResponse = fixture.app.post(s"/planet", body = "<Some serialised Planets>")
@@ -170,10 +170,10 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
       (persisterMock.loadAll[T](_: String)(_: Manifest[T], _: Formats)).expects(expectedParam, *, *).returning(returns)
     }
 
-    val sequence = new mutable.Queue[Int]()
-    def persister_expects_nextSequenceNumber(values: Int*) = {
+    val sequence = new mutable.Queue[String]()
+    def persister_expects_nextSequenceNumber(values: String*) = {
       sequence.enqueue(values:_*)
-      (persisterMock.nextSequenceNumber _).expects().onCall(() => sequence.dequeue()).anyNumberOfTimes()
+      (persisterMock.nextSequenceId _).expects().onCall(() => sequence.dequeue()).anyNumberOfTimes()
     }
 
     def persister_expects_save[T <: Resource[T]](expectedResource: String, expectedSeq: Seq[T]) = {
@@ -181,42 +181,3 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     }
   }
 }
-
-/*
-It went horribly wrong: org.scalatest.exceptions.TestFailedException: Unexpected call:
-
-save(spaceship, List(), trivial.rest.Spaceship)
-save(spaceship, List(Spaceship(Some(1),Enterprise,150,Vector(Some(1),33.3,1.4))), *, *)
-
-Expected:
-inAnyOrder {
-  registerResource(*, *) once (called once)
-  registerResource(*, *) once (called once)
-  registerResource(*, *) once (called once)
-  registerResource(*, *) once (called once)
-  registerResource(*, *) once (called once)
-  registerResource(*, *) once (called once)
-  formatsExcept(*) any number of times (called once)
-  formatsExcept(*) any number of times (never called)
-  formatsExcept(*) any number of times (never called)
-  formatsExcept(*) any number of times (never called)
-  formatsExcept(*) any number of times (never called)
-  formatsExcept(*) any number of times (never called)
-  save(spaceship, List(Spaceship(Some(1),Enterprise,150,Vector(Some(1),33.3,1.4))), *, *) once (never called - UNSATISFIED)
-  nextSequenceNumber() any number of times (never called)
-  loadAll(vector, *, *) once (never called - UNSATISFIED)
-  deserialise(*, *) once (called once)
-}
-
-Actual:
-  registerResource(<function1>, trivial.rest.Spaceship)
-  registerResource(<function1>, trivial.rest.Vector)
-  registerResource(<function1>, trivial.rest.Planet)
-  registerResource(<function1>, trivial.rest.Foo)
-  registerResource(<function1>, trivial.rest.Currency)
-  registerResource(<function1>, trivial.rest.ExchangeRate)
-  deserialise([{"name":"Enterprise","personnel":150,"bearing":"1"}], trivial.rest.Spaceship)
-  formatsExcept(trivial.rest.Spaceship)
-  save(spaceship, List(), trivial.rest.Spaceship, trivial.rest.RestfulApiSpec$RestApiFixture$$anon$2@35e5d0e5)
-
-*/
