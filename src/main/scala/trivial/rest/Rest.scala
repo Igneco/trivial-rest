@@ -82,6 +82,7 @@ class Rest(uriRoot: String,
       // TODO - CAS - 27/04/15 - Yes, this will become a for-comp, but only when I have worked out all the bits
 
       val persisted: Either[Failure, String] = try {
+        // TODO - CAS - 02/06/15 - Check we don't have an ID before we serialise? Write a test ... try to Post something with an ID
         val deserialisedT: Either[Failure, Seq[T]] = serialiser.deserialise(request.getContentString())
         val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
         val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(persister.nextSequenceId)))
@@ -91,7 +92,7 @@ class Rest(uriRoot: String,
         val serialised: Either[Failure, String] = saved.right.map(t => s"""{"addedCount":"$t"}""")
         serialised
       } catch {
-        case e: Exception => Left(Failure(500, s"It went horribly wrong: $e"))
+        case e: Exception => Left(Failure(500, s"Failed to persist at ${pathTo(resourceName)}: ${e.getStackTraceString}"))
       }
 
       persisted match {
