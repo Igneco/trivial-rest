@@ -1,6 +1,6 @@
 package trivial.rest.serialisation
 
-import org.json4s.{JValue, NoTypeHints, MappingException, Formats}
+import org.json4s._
 import org.json4s.native.{JsonParser, Serialization}
 import trivial.rest.{Classy, Failure, Resource}
 
@@ -21,14 +21,15 @@ class Json4sSerialiser extends Serialiser {
   override implicit def formatsExcept[T : ClassTag]: Formats =
     Serialization.formats(NoTypeHints) ++ (resourceSerialisers - Classy.runtimeClass[T]).values
 
-  def withDefaultFields[T <: Resource[T] : ClassTag](defaultObject: Any): Json4sSerialiser = ???
+  def registerDefaultFields[T <: Resource[T] : ClassTag](defaultObject: T) = {
+    val jValue: JValue = Extraction.decompose(defaultObject)
+    fieldDefaults += Classy.runtimeClass[T] -> jValue
+  }
 
   // TODO - CAS - 07/05/15 - Switch this to persister.getById, once we have /get/:id enabled
-  def hunt[T <: Resource[T]](allTheTs: => Either[Failure, Seq[T]], id: String): Option[T] = {
-    allTheTs match {
-      case Right(seqTs) => seqTs.find(_.id == Some(id))
-      case Left(failure) => None
-    }
+  def hunt[T <: Resource[T]](allTheTs: => Either[Failure, Seq[T]], id: String): Option[T] = allTheTs match {
+    case Right(seqTs) => seqTs.find(_.id == Some(id))
+    case Left(failure) => None
   }
 
   /*
@@ -62,11 +63,14 @@ class Json4sSerialiser extends Serialiser {
         */
   override def deserialise[T <: Resource[T] : Manifest](body: String): Either[Failure, Seq[T]] =
     try {
-      val json = JsonParser.parse(body)
-      // (defaultsFor[T] merge json).extract[T]
-      Right(Serialization.read[Seq[T]](body))
+      val defaultValues: JValue = fieldDefaults.getOrElse(Classy.runtimeClass[T], JObject())
+
+      JsonParser.parse(body) match {
+        case JArray(resources) => Right(JArray(resources.map(defaultValues merge _)).extract[Seq[T]])
+        case other => Left(Failure.notAnArray(body, other))
+      }
     } catch {
       case m: MappingException => Left(Failure(500, SerialiserExceptionHelper.huntCause(m, Seq.empty[String])))
-      case e: Exception => Left(Failure(500, s"THE ONE IN SERIALISER ===> Failed to deserialise into [T], due to: $e"))
+      case e: Exception => Left(Failure(500, s"trivial.rest.serialisation.Json4sSerialiser ===> Failed to deserialise into [T], due to: $e"))
     }
 }

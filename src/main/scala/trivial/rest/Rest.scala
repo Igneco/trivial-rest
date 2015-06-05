@@ -40,7 +40,7 @@ class Rest(uriRoot: String,
     resources += resourceName
     serialiser.registerResource[T](allOf[T])
 
-    def allOf[T <: Resource[T] : Manifest]: Formats => Either[Failure, Seq[T]] = (formats) => persister.loadAll[T](resourceName)(implicitly[Manifest[T]], formats)
+    def allOf[R <: Resource[R] : Manifest]: Formats => Either[Failure, Seq[R]] = (formats) => persister.loadAll[R](resourceName)(implicitly[Manifest[R]], formats)
 
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
