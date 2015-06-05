@@ -1,7 +1,7 @@
 package trivial.rest.serialisation
 
-import org.json4s.{NoTypeHints, MappingException, Formats}
-import org.json4s.native.Serialization
+import org.json4s.{JValue, NoTypeHints, MappingException, Formats}
+import org.json4s.native.{JsonParser, Serialization}
 import trivial.rest.{Classy, Failure, Resource}
 
 import scala.collection.mutable
@@ -10,6 +10,7 @@ import scala.reflect.ClassTag
 class Json4sSerialiser extends Serialiser {
 
   private val resourceSerialisers = mutable.Map.empty[Class[_], ResourceSerialiser[_]]
+  private val fieldDefaults = mutable.Map.empty[Class[_], JValue]
 
   override def registerResource[T <: Resource[T] : ClassTag](allTheTs: Formats => Either[Failure, Seq[T]]) = {
     val serialiser = ResourceSerialiser[T](_.id.getOrElse(""), id => hunt(allTheTs(formatsExcept[T]), id))
@@ -19,6 +20,8 @@ class Json4sSerialiser extends Serialiser {
   // TODO - CAS - 11/05/15 - memoize
   override implicit def formatsExcept[T : ClassTag]: Formats =
     Serialization.formats(NoTypeHints) ++ (resourceSerialisers - Classy.runtimeClass[T]).values
+
+  def withDefaultFields[T <: Resource[T] : ClassTag](defaultObject: Any): Json4sSerialiser = ???
 
   // TODO - CAS - 07/05/15 - Switch this to persister.getById, once we have /get/:id enabled
   def hunt[T <: Resource[T]](allTheTs: => Either[Failure, Seq[T]], id: String): Option[T] = {
@@ -59,6 +62,8 @@ class Json4sSerialiser extends Serialiser {
         */
   override def deserialise[T <: Resource[T] : Manifest](body: String): Either[Failure, Seq[T]] =
     try {
+      val json = JsonParser.parse(body)
+      // (defaultsFor[T] merge json).extract[T]
       Right(Serialization.read[Seq[T]](body))
     } catch {
       case m: MappingException => Left(Failure(500, SerialiserExceptionHelper.huntCause(m, Seq.empty[String])))

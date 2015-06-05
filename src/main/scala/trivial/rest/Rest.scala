@@ -34,7 +34,7 @@ class Rest(uriRoot: String,
 
   import controller._
 
-  def resource[T <: Resource[T] with AnyRef : ClassTag : Manifest](supportedMethods: HttpMethod*) = {
+  def resource[T <: Resource[T] with AnyRef : ClassTag : Manifest](supportedMethods: HttpMethod*): Rest = {
     lazy val resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
 
     resources += resourceName
