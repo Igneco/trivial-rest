@@ -33,9 +33,17 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
   }
 
   "We can post an ExchangeRate" in {
-    val newCurrency = """[{"rate":55.5,"currency":"1"}]"""
+    val rate = """[{"rate":55.5,"currency":"1"}]"""
 
-    post("/exchangerate", body = newCurrency)
+    post("/exchangerate", body = rate)
+
+    response.body must equal("""{"addedCount":"1"}""")
+  }
+
+  "We can post a Currency without the required 'symbol' field" in {
+    val newCurrency = """[{"isoName":"NZD"}]"""
+
+    post("/currency", body = newCurrency)
 
     response.body must equal("""{"addedCount":"1"}""")
   }

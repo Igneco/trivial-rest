@@ -48,7 +48,7 @@ class Json4sSerialiser extends Serialiser {
         constructor=public scala.runtime.Nothing$()))
 
         (2)
-        // We have pulled an ID off disk, and we don't know how to map it to a thing.
+        // The "currency" field on the case class cannot be completed, because there is no "cuurency" value in the JSON string.
 
         Left(Failure(500,Failed to deserialise into exchangerate, due to: org.json4s.package$MappingException: No usable value for currency
         No usable value for isoName
