@@ -92,7 +92,7 @@ class Rest(uriRoot: String,
         val serialised: Either[Failure, String] = saved.right.map(t => s"""{"addedCount":"$t"}""")
         serialised
       } catch {
-        case e: Exception => Left(Failure(500, s"Failed to persist at ${pathTo(resourceName)}: ${e.getStackTraceString}"))
+        case e: Exception => Left(Failure.persistence(pathTo(resourceName), e.getStackTraceString))
       }
 
       persisted match {
