@@ -71,6 +71,6 @@ class Json4sSerialiser extends Serialiser {
       }
     } catch {
       case m: MappingException => Left(Failure(500, SerialiserExceptionHelper.huntCause(m, Seq.empty[String])))
-      case e: Exception => Left(Failure(500, s"trivial.rest.serialisation.Json4sSerialiser ===> Failed to deserialise into [T], due to: $e"))
+      case e: Exception => Left(Failure.deserialisation(e))
     }
 }
