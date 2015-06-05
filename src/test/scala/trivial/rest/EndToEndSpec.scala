@@ -14,8 +14,9 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
 
   val existingCurrencies = """{"id":"1","rate":33.3,"currency":"2"},{"id":"2","rate":44.4,"currency":"3"}"""
 
+  private val serialiser = new Json4sSerialiser
+
   override def server = new FinatraServer {
-    private val serialiser = new Json4sSerialiser
     private val testDir = provisionedTestDir
     register(new RestfulControllerExample(serialiser, new JsonOnFileSystem(testDir, serialiser)))
   }
@@ -42,6 +43,8 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
 
   "We can post a Currency without the required 'symbol' field" in {
     val newCurrency = """[{"isoName":"NZD"}]"""
+    
+    serialiser.withDefaultFields[Currency](Currency(None, "", ""))
 
     post("/currency", body = newCurrency)
 

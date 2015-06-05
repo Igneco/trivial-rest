@@ -8,8 +8,6 @@ import scala.reflect.ClassTag
 import scala.reflect.io.Directory
 
 class RestfulControllerExample(serialiser: Serialiser, persister: Persister) extends Controller {
-  serialiser.withDefaultFields[Currency](Currency(None, "", ""))
-  
   new Rest("/", this, serialiser, persister)
     .resource[Spaceship](GetAll, Post)
     .resource[Vector](GetAll)
