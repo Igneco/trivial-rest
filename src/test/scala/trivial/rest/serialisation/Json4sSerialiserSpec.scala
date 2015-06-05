@@ -54,9 +54,8 @@ class Json4sSerialiserSpec extends WordSpec with MustMatchers {
   }
 
   "With sensible defaults, we can deserialise input data which is missing necessary fields" in {
-    val serialiser = new Json4sSerialiser
-
-    serialiser.registerDefaultFields[Currency](Currency(None, "", ""))
+    val serialiser = (new Json4sSerialiser)
+      .withDefaultFields[Currency](Currency(None, "", ""))
 
     val expectedCurrencies = Seq(
       Currency(None, "NZD", ""),

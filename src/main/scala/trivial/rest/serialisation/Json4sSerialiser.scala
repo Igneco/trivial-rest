@@ -21,9 +21,10 @@ class Json4sSerialiser extends Serialiser {
   override implicit def formatsExcept[T : ClassTag]: Formats =
     Serialization.formats(NoTypeHints) ++ (resourceSerialisers - Classy.runtimeClass[T]).values
 
-  def registerDefaultFields[T <: Resource[T] : ClassTag](defaultObject: T) = {
+  override def withDefaultFields[T <: Resource[T] : ClassTag](defaultObject: T): Json4sSerialiser = {
     val jValue: JValue = Extraction.decompose(defaultObject)
     fieldDefaults += Classy.runtimeClass[T] -> jValue
+    this
   }
 
   // TODO - CAS - 07/05/15 - Switch this to persister.getById, once we have /get/:id enabled
