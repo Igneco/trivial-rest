@@ -17,6 +17,7 @@ import scala.reflect.ClassTag
  * (1) Declare a case class
  * (2) Register it as a Resource, specifying the allowed HTTP methods
  * (3) You get a truly RESTful API, your allowed HTTP methods, and persistence, and caching, for free.
+ * (4) -- and a few days later -- when you need to migrate data, simply declare the migration rules
  *
  * Concepts to explore:
  *   Case classes as a schema for JSON
@@ -30,6 +31,7 @@ class Rest(uriRoot: String,
            validator: Validator = new RestRulesValidator) {
 
   private val resources = mutable.ListBuffer[String]()
+  private val forwardMigrations = mutable.Map.empty[Class[_], _ => _]
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"
 
   import controller._
@@ -40,7 +42,7 @@ class Rest(uriRoot: String,
     resources += resourceName
     serialiser.registerResource[T](allOf[T])
 
-    def allOf[R <: Resource[R] : Manifest]: Formats => Either[Failure, Seq[R]] = (formats) => persister.loadAll[R](resourceName)(implicitly[Manifest[R]], formats)
+    def allOf[R <: Resource[R] : Manifest]: Formats => Either[Failure, Seq[R]] = (formats) => persister.loadAll[R](resourceName)(implicitly[Manifest[R]])
 
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
@@ -76,6 +78,15 @@ class Rest(uriRoot: String,
     this
   }
 
+  def migrate[T <: Resource[T] : ClassTag : Manifest](idempotentForwardMigration: (T) => T, oldResourceName: Option[String] = None) = {
+    // TODO - CAS - 09/06/15 - register the migration, so we can use it here for post() and get()
+
+    // TODO - CAS - 10/06/15 - Error handling - the app should not start up if the migration fails -> remove all registered Resources, return a helpful error message for any GET/POST access
+    persister.migrate(idempotentForwardMigration, oldResourceName)
+
+    this
+  }
+
   def addPost[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
 
     post(pathTo(resourceName)) { request =>
@@ -84,11 +95,15 @@ class Rest(uriRoot: String,
       val persisted: Either[Failure, String] = try {
         // TODO - CAS - 02/06/15 - Check we don't have an ID before we serialise? Write a test ... try to Post something with an ID
         val deserialisedT: Either[Failure, Seq[T]] = serialiser.deserialise(request.getContentString())
+
+        // MIGRATE HERE - Putting it into serialiser.deserialise means we can't control when it runs
+        // POST /api/oldname will need to be migrated here
+
         val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
         val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(persister.nextSequenceId)))
 
         // TODO - CAS - 12/05/15 - Push the serialiser.formatsExcept[T] dependency into the persister
-        val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(pj => persister.save(resourceName, pj)(implicitly[Manifest[T]], serialiser.formatsExcept[T]))
+        val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(pj => persister.save(resourceName, pj)(implicitly[Manifest[T]]))
         val serialised: Either[Failure, String] = saved.right.map(t => s"""{"addedCount":"$t"}""")
         serialised
       } catch {
@@ -107,14 +122,12 @@ class Rest(uriRoot: String,
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
   def addGetAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
-    // TODO - CAS - 20/04/15 - Remove support for the suffixed URI
-    get(s"${pathTo(resourceName)}.json") { request => loadAll(resourceName) }
     get(pathTo(resourceName)) { request => loadAll(resourceName) }
   }
 
   def loadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String) = {
     // TODO - CAS - 12/05/15 - Push the serialiser.formatsExcept[T] dependency into the persister
-    persister.loadAll[T](resourceName)(implicitly[Manifest[T]], serialiser.formatsExcept[T]) match {
+    persister.loadAll[T](resourceName)(implicitly[Manifest[T]]) match {
       case Right(seqTs) => render.body(serialiser.serialise(seqTs)).contentType(utf8Json).toFuture
       case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
     }

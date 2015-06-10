@@ -1,11 +1,13 @@
 package trivial.rest
 
 import com.twitter.finagle.http.MediaType
+import com.twitter.finatra.Controller
 import com.twitter.finatra.test.MockApp
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names
 import org.json4s.Formats
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
+import trivial.rest.RestApp._
 import trivial.rest.TestDirectories._
 import trivial.rest.persistence.Persister
 import trivial.rest.serialisation.Serialiser
@@ -20,7 +22,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
 
     val response = fixture.app.get("/")
 
-    response.body must equal("""["currency","exchangerate","foo","planet","spaceship","vector"]""")
+    response.body must equal("""["currency","exchangerate","foo","metricperson","planet","spaceship","vector"]""")
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
@@ -139,6 +141,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     serialiser_expects_registerResource[ExchangeRate]
     serialiser_expects_registerResource[Foo]
     serialiser_expects_registerResource[Currency]
+    serialiser_expects_registerResource[MetricPerson]
 
     serialiser_expects_formatsExcept[Spaceship]
     serialiser_expects_formatsExcept[Vector]
@@ -147,8 +150,9 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     serialiser_expects_formatsExcept[Foo]
     serialiser_expects_formatsExcept[Currency]
 
-    val controllerWithRest = new RestfulControllerExample(serialiserMock, persisterMock)
-    val app = MockApp(controllerWithRest)
+    val controller = new Controller {}
+    val rest = new RestExample("/", controller, serialiserMock, persisterMock)
+    val app = MockApp(controller)
 
     def serialiser_expects_registerResource[T <: Resource[T] : ClassTag] = {
       (serialiserMock.registerResource[T] (_: Formats => Either[Failure, Seq[T]])(_: ClassTag[T])).expects(*,*)
@@ -167,7 +171,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     }
 
     def persister_expects_loadAll[T <: Resource[T]](expectedParam: String, returns: Either[Failure, Seq[T]]) = {
-      (persisterMock.loadAll[T](_: String)(_: Manifest[T], _: Formats)).expects(expectedParam, *, *).returning(returns)
+      (persisterMock.loadAll[T](_: String)(_: Manifest[T])).expects(expectedParam, *).returning(returns)
     }
 
     val sequence = new mutable.Queue[String]()
@@ -177,7 +181,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     }
 
     def persister_expects_save[T <: Resource[T]](expectedResource: String, expectedSeq: Seq[T]) = {
-      (persisterMock.save[T](_: String, _: Seq[T])(_: Manifest[T], _: Formats)).expects(expectedResource, expectedSeq, *, *).returning(Right(expectedSeq.size))
+      (persisterMock.save[T](_: String, _: Seq[T])(_: Manifest[T])).expects(expectedResource, expectedSeq, *).returning(Right(expectedSeq.size))
     }
   }
 }

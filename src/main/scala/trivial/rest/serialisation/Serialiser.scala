@@ -2,7 +2,7 @@ package trivial.rest.serialisation
 
 import org.json4s.Formats
 import org.json4s.native.Serialization
-import trivial.rest.{Failure, Resource}
+import trivial.rest.{Resource, Failure}
 
 import scala.reflect.ClassTag
 

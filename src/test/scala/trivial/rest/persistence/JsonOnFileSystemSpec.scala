@@ -121,5 +121,9 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
     jofs.nextSequenceId mustBe "0000002"
   }
 
+//  "Migrating a Resource type to a new name changes the name of the target file" in { fail("Nope") }
+//
+//  "We create a copy of the data file before we migrate it" in { fail("Nope") }
+
   // "Adding a second record appends to the data file" in {}
 }

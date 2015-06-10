@@ -1,25 +1,16 @@
 package trivial.rest
 
-import com.twitter.finatra.FinatraServer
 import com.twitter.finatra.test.SpecHelper
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names._
-import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
-import trivial.rest.TestDirectories._
-import trivial.rest.persistence.{FileSystem, JsonOnFileSystem}
-import trivial.rest.serialisation.Json4sSerialiser
+import org.scalatest.{MustMatchers, WordSpec}
 
-import scala.reflect.io.{File, Directory}
+import scala.reflect.ClassTag
 
 class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
 
   val existingCurrencies = """{"id":"1","rate":33.3,"currency":"2"},{"id":"2","rate":44.4,"currency":"3"}"""
 
-  private val serialiser = new Json4sSerialiser
-
-  override def server = new FinatraServer {
-    private val testDir = provisionedTestDir
-    register(new RestfulControllerExample(serialiser, new JsonOnFileSystem(testDir, serialiser)))
-  }
+  override val server = new TestableFinatraServer {}
 
   "Charset for JSON data is UTF-8" in {
     get("/foo")
@@ -43,8 +34,8 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
 
   "We can post a Currency without the required 'symbol' field" in {
     val newCurrency = """[{"isoName":"NZD"}]"""
-    
-    serialiser.withDefaultFields[Currency](Currency(None, "", ""))
+
+    server.serialiser.withDefaultFields[Currency](Currency(None, "", ""))
 
     post("/currency", body = newCurrency)
 
