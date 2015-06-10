@@ -4,7 +4,6 @@ import com.twitter.finatra.{Controller, FinatraServer}
 import trivial.rest.persistence.{Persister, JsonOnFileSystem}
 import trivial.rest.serialisation.{Json4sSerialiser, Serialiser}
 
-import scala.reflect.ClassTag
 import scala.reflect.io.Directory
 
 class RestExample(uriRoot: String,

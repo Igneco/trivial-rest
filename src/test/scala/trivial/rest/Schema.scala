@@ -29,15 +29,14 @@ case class Planet(id: Option[String], name: String, classification: String) exte
 }
 
 case class MetricPerson(id: Option[String], name: String, heightInCentimetres: Int, bmi: BigDecimal) extends Resource[MetricPerson] {
-  println(s"PERSON CREATED: ${this}")
-  // Convert the original constructor into an auxiliary constructor
+  override def withId(newId: String) = copy(id = Some(newId))
+}
+
+// Convert the original constructor into an auxiliary constructor
 //  def this(id: Option[String], name: String, heightInInches: Int, weightInPounds: Int) = this(
 //    id, name,
 //    (heightInInches * 2.4).toInt,
 //    (heightInInches/100)/((weightInPounds / 2.2) * (weightInPounds / 2.2)))
-
-  override def withId(newId: String) = copy(id = Some(newId))
-}
 
 //object MetricPerson {
 //  def apply(id: Option[String], name: String, heightInInches: Int, weightInPounds: Int): MetricPerson = {

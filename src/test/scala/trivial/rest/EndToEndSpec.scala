@@ -4,8 +4,6 @@ import com.twitter.finatra.test.SpecHelper
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names._
 import org.scalatest.{MustMatchers, WordSpec}
 
-import scala.reflect.ClassTag
-
 class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
 
   val existingCurrencies = """{"id":"1","rate":33.3,"currency":"2"},{"id":"2","rate":44.4,"currency":"3"}"""
@@ -28,16 +26,6 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
     val rate = """[{"rate":55.5,"currency":"1"}]"""
 
     post("/exchangerate", body = rate)
-
-    response.body must equal("""{"addedCount":"1"}""")
-  }
-
-  "We can post a Currency without the required 'symbol' field" in {
-    val newCurrency = """[{"isoName":"NZD"}]"""
-
-    server.serialiser.withDefaultFields[Currency](Currency(None, "", ""))
-
-    post("/currency", body = newCurrency)
 
     response.body must equal("""{"addedCount":"1"}""")
   }

@@ -21,4 +21,3 @@ trait Serialiser {
   def deserialise[T <: Resource[T] : Manifest](body: String): Either[Failure, Seq[T]]
   def serialise[T <: Resource[T] : ClassTag](seqTs: Seq[T]): String = Serialization.write(seqTs)(formatsExcept[T])
 }
-
