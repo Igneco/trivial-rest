@@ -32,6 +32,11 @@ case class MetricPerson(id: Option[String], name: String, heightInCentimetres: I
   override def withId(newId: String) = copy(id = Some(newId))
 }
 
+// Example of an old Resource, no longer registered in Rest.
+case class ImperialPerson(id: Option[String], name: String, heightInInches: Int, weightInPounds: Int) extends Resource[ImperialPerson] {
+  override def withId(newId: String) = copy(id = Some(newId))
+}
+
 // Convert the original constructor into an auxiliary constructor
 //  def this(id: Option[String], name: String, heightInInches: Int, weightInPounds: Int) = this(
 //    id, name,
@@ -43,9 +48,7 @@ case class MetricPerson(id: Option[String], name: String, heightInCentimetres: I
 //    convert(ImperialPerson(id, name, heightInInches, weightInPounds))
 //  }
 //
-//  case class ImperialPerson(id: Option[String], name: String, heightInInches: Int, weightInPounds: Int) extends Resource[ImperialPerson] {
-//    override def withId(newId: String) = copy(id = Some(newId))
-//  }
+
 //
 //  def convert(old: ImperialPerson): MetricPerson = {
 //    println("CONVERT WAS CALLED")
