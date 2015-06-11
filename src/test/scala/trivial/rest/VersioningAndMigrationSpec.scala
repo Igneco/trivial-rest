@@ -53,11 +53,13 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
 
     givenExistingData("currency", oldData)
 
-    server.rest.migrate[Currency]{
+    val migrationResult = server.rest.migrate[Currency]{
       case Currency(id, code, _) if code.endsWith("D") => Currency(id, code, "$")
       case Currency(id, "XXX", _) => Currency(id, "XXX", "X")
       case other => other
     }
+    
+    migrationResult mustEqual Right(3)
 
     get("/currency")
 
@@ -80,7 +82,7 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
 
     givenExistingData("imperialperson", Seq(imperialPerson))
 
-    server.rest.migrate[MetricPerson](identity, Some("imperialperson"))
+    server.rest.migrate[MetricPerson](identity, Some("imperialperson")) mustEqual Right(1)
 
     get("/metricperson")
 
