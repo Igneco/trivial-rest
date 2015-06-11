@@ -78,15 +78,9 @@ class Rest(uriRoot: String,
     this
   }
 
-  def migrate[T <: Resource[T] : ClassTag : Manifest](idempotentForwardMigration: (T) => T, oldResourceName: Option[String] = None) = {
+  def migrate[T <: Resource[T] : ClassTag : Manifest](idempotentForwardMigration: (T) => T, oldResourceName: Option[String] = None): Either[Failure, Int] = {
     // TODO - CAS - 09/06/15 - register the migration, so we can use it here for post() and get()
-    
-
-    // TODO - CAS - 10/06/15 - Error handling - the app should not start up if the migration fails -> remove all registered Resources, return a helpful error message for any GET/POST access
     persister.migrate(idempotentForwardMigration, oldResourceName)
-    
-
-    this
   }
 
   def addPost[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
@@ -98,11 +92,11 @@ class Rest(uriRoot: String,
         // TODO - CAS - 02/06/15 - Check we don't have an ID before we serialise? Write a test ... try to Post something with an ID
         val deserialisedT: Either[Failure, Seq[T]] = serialiser.deserialise(request.getContentString())
 
-        
+
         // MIGRATE HERE - Putting it into serialiser.deserialise means we can't control when it runs
         // POST /api/oldname will need to be migrated here
 
-        
+
         val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
         val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(persister.nextSequenceId)))
 

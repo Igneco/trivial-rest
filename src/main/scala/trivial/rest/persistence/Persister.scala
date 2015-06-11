@@ -11,5 +11,5 @@ trait Persister {
   def formatSequenceId(id: Int): String
 
   // loadAll, backup, migrate data, save
-  def migrate[T <: Resource[T] : ClassTag : Manifest](forward: (T) => T, oldApiPath: Option[String])
+  def migrate[T <: Resource[T] : ClassTag : Manifest](forward: (T) => T, oldApiPath: Option[String]): Either[Failure, Int]
 }

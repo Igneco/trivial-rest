@@ -3,7 +3,7 @@ package trivial.rest
 import com.twitter.finatra.test.SpecHelper
 import org.json4s.NoTypeHints
 import org.json4s.native.Serialization
-import org.scalatest.{MustMatchers, WordSpec}
+import org.scalatest.{OneInstancePerTest, MustMatchers, WordSpec}
 
 import scala.reflect.ClassTag
 import scala.tools.nsc.FatalError
@@ -26,7 +26,7 @@ trait Migration[Before, After] {
 
 
  */
-class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHelper {
+class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHelper with OneInstancePerTest {
 
   override val server = new TestableFinatraServer {}
 
@@ -40,7 +40,7 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
     response.body must equal("""{"addedCount":"1"}""")
   }
 
-  "(2) Change a field's data, based on other fields - add some symbols to existing currencies" in {
+  "(2)(a) Change a field's data, based on other fields - add some symbols to existing currencies" in {
     val oldData = Seq(
       Currency(None, "AUD", ""),
       Currency(None, "ABC", ""),
@@ -64,15 +64,14 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
     response.body mustEqual jsonFor(migratedData)
   }
 
-  "(2)(b) Change a field's data, based on other fields - migration failures cause the system to exit" in {
-    givenExistingData("currency", Seq(Currency(None, "AUD", "")))
+  case class NotACurrency(dog: String, cat: Int)
 
-    try {
-      server.rest.migrate[Currency](identity, Some("incorrectResourceName"))
-      fail("Should have bailed")
-    } catch {
-      case t: Throwable => 
-    }
+  "(2)(b) Change a field's data, based on other fields - migration failures are returned to the caller" in {
+    givenExistingData("currency", Seq(NotACurrency("X", 2)))
+
+    server.rest.migrate[Currency](identity)
+      .right.map(i => fail("Should have bailed"))
+      .left.map(f => f.reason must startWith ("No usable value for isoName"))
   }
 
   "(3)(a) Change resource name, and map from new resource --> migrate old data" in {
@@ -99,15 +98,15 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
     response.body mustEqual jsonFor(Seq(imperialPerson))
   }
 
-  "(3)(c) Change resource name, and map from new resource --> maintain backwards-compatibility for POST" in { fail("Poo") }
+  "(3)(c) Change resource name, and map from new resource --> maintain backwards-compatibility for POST" in { fail("Post *might* not work") }
 
   "We only run the migration of stored data once per JVM runtime" in { fail("We actually run it every time") }
 
   def jsonFor[T <: Resource[T] : ClassTag](seqTs: Seq[T]): String = Serialization.write(seqTs)(Serialization.formats(NoTypeHints))
 
-  def givenExistingData[T <: Resource[T] : ClassTag : Manifest](resourceName: String, resources: Seq[T]) = {
-    implicit val formats = server.serialiser.formatsExcept[T]
+  def givenExistingData[T <: AnyRef](resourceName: String, resources: T) = {
+    val json = Serialization.write(resources)(Serialization.formats(NoTypeHints))
     server.persister.assuredFile(server.testDir, resourceName).delete()
-    server.persister.save[T](resourceName, resources)
+    server.persister.assuredFile(server.testDir, resourceName).writeAll(json)
   }
 }

@@ -22,7 +22,7 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
     else
       Right(Seq.empty)
 
-  override def migrate[T <: Resource[T] : ClassTag : Manifest](forward: (T) => T, oldResourceName: Option[String]) = {
+  override def migrate[T <: Resource[T] : ClassTag : Manifest](forward: (T) => T, oldResourceName: Option[String]): Either[Failure, Int] = {
     // TODO - CAS - 09/06/15 - Make Classy work with Manifests as well as ClassTags.
     val targetName = Classy.name[T].toLowerCase
     val sourceName = oldResourceName.getOrElse(targetName)
@@ -30,12 +30,7 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
 
     FileSystem.move(assuredFile(docRoot, sourceName), fileFor(backupName))
 
-    val oldData: Either[Failure, Seq[T]] = loadAll[T](backupName)
-    println(s"oldData: ${oldData}")
-    val migratedData: Either[Failure, Seq[T]] = oldData.right.map(_.map(forward))
-    println(s"migratedData: ${migratedData}")
-    val saved: Either[Failure, Int] = migratedData.right.flatMap(seqTs => save(targetName, seqTs))
-    println(s"saved: ${saved}")
+    loadAll[T](backupName).right.map(_.map(forward)).right.flatMap(seqTs => save(targetName, seqTs))
   }
 
   private lazy val timestampFormat: DateTimeFormatter = DateTimeFormat.forPattern("yyyyddMMHHmmssSSS")
