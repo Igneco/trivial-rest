@@ -105,8 +105,6 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
 
   "(3)(c) Change resource name, and map from new resource --> maintain backwards-compatibility for POST" in { fail("Post *might* not work") }
 
-  "We only run the migration of stored data once per JVM runtime" in { fail("We actually run it every time") }
-
   def jsonFor[T](seqTs: Seq[T]): String = Serialization.write(seqTs)(Serialization.formats(NoTypeHints))
 
   def givenExistingData[T <: AnyRef](resourceName: String, resources: T) = {
