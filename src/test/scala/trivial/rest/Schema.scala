@@ -1,5 +1,9 @@
 package trivial.rest
 
+import java.math.MathContext
+
+import trivial.rest.ImperialToMetricConverter._
+
 // TODO - CAS - 01/05/15 - find a way to know that T is a case class
 // See Travis Brown's answer at http://stackoverflow.com/questions/13446528/howto-model-named-parameters-in-method-invocations-with-scala-macros/13447439#13447439
 
@@ -30,31 +34,25 @@ case class Planet(id: Option[String], name: String, classification: String) exte
 
 case class MetricPerson(id: Option[String], name: String, heightInCentimetres: Int, bmi: BigDecimal) extends Resource[MetricPerson] {
   override def withId(newId: String) = copy(id = Some(newId))
+
+  // Auxiliary constructor matching old data structure
+  def this(id: Option[String], name: String, heightInInches: Int, weightInPounds: Int) =
+    this(
+      id, name,
+      (inchesToMetres(heightInInches) * 100).toInt,
+      calcBmi(inchesToMetres(heightInInches), poundsToKilograms(weightInPounds))
+    )
 }
 
-// Example of an old Resource, no longer registered in Rest.
-case class ImperialPerson(id: Option[String], name: String, heightInInches: Int, weightInPounds: Int) extends Resource[ImperialPerson] {
-  override def withId(newId: String) = copy(id = Some(newId))
+// json4s requires you to declare a companion object, in addition to the auxiliary case class constructor defined above
+object MetricPerson
+
+// Case class auxiliary constructors can't call out to converter functions in a companion object: it must be an unrelated object.
+object ImperialToMetricConverter {
+  def inchesToMetres(inches: Int): Double = (inches * 2.54)/100
+  def poundsToKilograms(pounds: Int): Double = pounds / 2.2
+  def calcBmi(heightInMetres: Double, weightInKilograms: Double): BigDecimal = {
+    val unrounded: BigDecimal = weightInKilograms / (heightInMetres * heightInMetres)
+    unrounded.round(new MathContext(3))
+  }
 }
-
-// Convert the original constructor into an auxiliary constructor
-//  def this(id: Option[String], name: String, heightInInches: Int, weightInPounds: Int) = this(
-//    id, name,
-//    (heightInInches * 2.4).toInt,
-//    (heightInInches/100)/((weightInPounds / 2.2) * (weightInPounds / 2.2)))
-
-//object MetricPerson {
-//  def apply(id: Option[String], name: String, heightInInches: Int, weightInPounds: Int): MetricPerson = {
-//    convert(ImperialPerson(id, name, heightInInches, weightInPounds))
-//  }
-//
-
-//
-//  def convert(old: ImperialPerson): MetricPerson = {
-//    println("CONVERT WAS CALLED")
-//    import old._
-//    val height = (heightInInches * 2.4).toInt
-//    val weight = weightInPounds / 2.2
-//    MetricPerson(id, name, height, (height /100)/(weight * weight))
-//  }
-//}

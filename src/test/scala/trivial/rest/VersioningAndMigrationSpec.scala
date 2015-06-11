@@ -76,9 +76,12 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
       .left.map(f => f.reason must startWith ("No usable value for isoName"))
   }
 
+  // Example of an old Resource, no longer registered in Rest.
+  case class ImperialPerson(id: Option[String], name: String, heightInInches: Int, weightInPounds: Int)
+
   "(3)(a) Change resource name, and map from new resource --> migrate old data" in {
     val imperialPerson = ImperialPerson(None, "Bob", 73, 220)
-    val metricPerson = MetricPerson(None, "Bob", 185, 20.5)
+    val metricPerson = MetricPerson(None, "Bob", 185, 29.1)
 
     givenExistingData("imperialperson", Seq(imperialPerson))
 
@@ -104,7 +107,7 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
 
   "We only run the migration of stored data once per JVM runtime" in { fail("We actually run it every time") }
 
-  def jsonFor[T <: Resource[T] : ClassTag](seqTs: Seq[T]): String = Serialization.write(seqTs)(Serialization.formats(NoTypeHints))
+  def jsonFor[T](seqTs: Seq[T]): String = Serialization.write(seqTs)(Serialization.formats(NoTypeHints))
 
   def givenExistingData[T <: AnyRef](resourceName: String, resources: T) = {
     val json = Serialization.write(resources)(Serialization.formats(NoTypeHints))
