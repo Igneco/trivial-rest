@@ -13,10 +13,10 @@ import scala.reflect.io.{Directory, File}
 
 class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persister with Memo {
 
-  override def loadAll[T <: Resource[T] : Manifest](resourceName: String): Either[Failure, Seq[T]] =
+  override def loadAll[T : Manifest](resourceName: String): Either[Failure, Seq[T]] =
     memo(resourceName) { actuallyLoadAll[T] }(resourceName)
 
-  private def actuallyLoadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Either[Failure, Seq[T]] =
+  private def actuallyLoadAll[T : Manifest](resourceName: String): Either[Failure, Seq[T]] =
     if (hasLocalFile(fileFor(resourceName)))
       serialiser.deserialise(fromDisk(resourceName))
     else

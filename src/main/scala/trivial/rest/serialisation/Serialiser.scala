@@ -16,8 +16,8 @@ import scala.reflect.ClassTag
  */
 trait Serialiser {
   def registerResource[T <: Resource[T] : ClassTag](allTheTs: Formats => Either[Failure, Seq[T]]): Unit
-  def withDefaultFields[T <: Resource[T] : ClassTag](defaultObject: T): Serialiser
+  def withDefaultFields[T : ClassTag](defaultObject: T): Serialiser
   implicit def formatsExcept[T : ClassTag]: Formats
-  def deserialise[T <: Resource[T] : Manifest](body: String): Either[Failure, Seq[T]]
+  def deserialise[T : Manifest](body: String): Either[Failure, Seq[T]]
   def serialise[T <: AnyRef : ClassTag](seqTs: Seq[T]): String = Serialization.write(seqTs)(formatsExcept[T])
 }

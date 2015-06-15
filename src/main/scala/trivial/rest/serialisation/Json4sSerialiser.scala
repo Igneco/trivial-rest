@@ -13,6 +13,7 @@ class Json4sSerialiser extends Serialiser {
   private val fieldDefaults = mutable.Map.empty[Class[_], JValue]
 
   override def registerResource[T <: Resource[T] : ClassTag](allTheTs: Formats => Either[Failure, Seq[T]]) = {
+    // TODO - CAS - 15/06/15 - Push the ResourceSerialiser back into the client, so that we don't need to know anything about Resources here
     val serialiser = ResourceSerialiser[T](_.id.getOrElse(""), id => hunt(allTheTs(formatsExcept[T]), id))
     resourceSerialisers += Classy.runtimeClass[T] -> serialiser
   }
@@ -21,7 +22,7 @@ class Json4sSerialiser extends Serialiser {
   override implicit def formatsExcept[T : ClassTag]: Formats =
     Serialization.formats(NoTypeHints) ++ (resourceSerialisers - Classy.runtimeClass[T]).values
 
-  override def withDefaultFields[T <: Resource[T] : ClassTag](defaultObject: T): Json4sSerialiser = {
+  override def withDefaultFields[T : ClassTag](defaultObject: T): Json4sSerialiser = {
     val jValue: JValue = Extraction.decompose(defaultObject)
     fieldDefaults += Classy.runtimeClass[T] -> jValue
     this
@@ -62,7 +63,7 @@ class Json4sSerialiser extends Serialiser {
 
   TODO - CAS - 01/05/15 - Try parsing the JSON AST, and showing that, for MappingException, which is about converting AST -> T
         */
-  override def deserialise[T <: Resource[T] : Manifest](body: String): Either[Failure, Seq[T]] =
+  override def deserialise[T : Manifest](body: String): Either[Failure, Seq[T]] =
     try {
       val defaultValues: JValue = fieldDefaults.getOrElse(Classy.runtimeClass[T], JObject())
 

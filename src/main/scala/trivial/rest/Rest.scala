@@ -42,7 +42,7 @@ class Rest(uriRoot: String,
     resources += resourceName
     serialiser.registerResource[T](allOf[T])
 
-    def allOf[R <: Resource[R] : Manifest]: Formats => Either[Failure, Seq[R]] = (formats) => persister.loadAll[R](resourceName)(implicitly[Manifest[R]])
+    def allOf[R : Manifest]: Formats => Either[Failure, Seq[R]] = (formats) => persister.loadAll[R](resourceName)
 
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
@@ -89,9 +89,9 @@ class Rest(uriRoot: String,
     persister.migrate(idempotentForwardMigration, oldResourceName)
   }
 
-  private def backwardsCompatibleAlias[T <: Resource[T] : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {
+  private def backwardsCompatibleAlias[T : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {
     get(s"/$alias") { request =>
-      respond(persister.loadAll[T](Resource.name[T])(implicitly[Manifest[T]]).right.map(seqTs => seqTs map backwardsView))
+      respond(persister.loadAll[T](Resource.name[T]).right.map(seqTs => seqTs map backwardsView))
     }
   }
 
@@ -123,7 +123,7 @@ class Rest(uriRoot: String,
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
-  def addGetAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit =
+  def addGetAll[T <: AnyRef : Manifest](resourceName: String): Unit =
     get(pathTo(resourceName)) { request =>
       respond(persister.loadAll[T](resourceName)(implicitly[Manifest[T]]))
     }
