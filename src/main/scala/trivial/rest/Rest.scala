@@ -123,10 +123,12 @@ class Rest(uriRoot: String,
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
-  def addGetAll[T <: AnyRef : Manifest](resourceName: String): Unit =
+  def addGetAll[T <: AnyRef : Manifest](resourceName: String): Unit = {
+    get(s"${pathTo(resourceName)}.json") { request => route.get(resourceName) }
     get(pathTo(resourceName)) { request =>
       respond(persister.loadAll[T](resourceName)(implicitly[Manifest[T]]))
     }
+  }
 
   private def respond[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]): Future[ResponseBuilder] =
     result match {
