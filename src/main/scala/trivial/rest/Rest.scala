@@ -124,7 +124,7 @@ class Rest(uriRoot: String,
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
   def addGetAll[T <: AnyRef : Manifest](resourceName: String): Unit = {
-    get(s"${pathTo(resourceName)}.json") { request => route.get(resourceName) }
+    get(s"${pathTo(resourceName)}.json") { request => route.get(pathTo(resourceName)) }
     get(pathTo(resourceName)) { request =>
       respond(persister.loadAll[T](resourceName)(implicitly[Manifest[T]]))
     }
