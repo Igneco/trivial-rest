@@ -21,8 +21,10 @@ object HttpMethod {
   def all: Set[HttpMethod] = Set(GetAll, Get, Put, Post, Delete)
 }
 
+// TODO - CAS - 09/06/15 - Make Classy work with Manifests as well as ClassTags.
 object Classy {
+  def apply[T : ClassTag]: String = name[T].toLowerCase
   def runtimeClass[T : ClassTag]: Class[_] = implicitly[ClassTag[T]].runtimeClass
-  def name[T : ClassTag]: String = implicitly[ClassTag[T]].runtimeClass.getSimpleName.stripSuffix("$")
+  def name[T : ClassTag]: String = name(runtimeClass[T])
   def name(clazz: Class[_]): String = clazz.getSimpleName.stripSuffix("$")
 }

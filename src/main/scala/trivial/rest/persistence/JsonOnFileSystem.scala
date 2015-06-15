@@ -23,8 +23,7 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
       Right(Seq.empty)
 
   override def migrate[T <: Resource[T] : ClassTag : Manifest](forward: (T) => T, oldResourceName: Option[String]): Either[Failure, Int] = {
-    // TODO - CAS - 09/06/15 - Make Classy work with Manifests as well as ClassTags.
-    val targetName = Classy.name[T].toLowerCase
+    val targetName = Resource.name[T]
     val sourceName = oldResourceName.getOrElse(targetName)
     val backupName = s"$sourceName-${stamp()}"
 

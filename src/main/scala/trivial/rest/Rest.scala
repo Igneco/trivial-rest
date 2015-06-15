@@ -91,7 +91,7 @@ class Rest(uriRoot: String,
 
   private def backwardsCompatibleAlias[T <: Resource[T] : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {
     get(s"/$alias") { request =>
-      respond(persister.loadAll[T](Classy.name[T].toLowerCase)(implicitly[Manifest[T]]).right.map(seqTs => seqTs map backwardsView))
+      respond(persister.loadAll[T](Resource.name[T])(implicitly[Manifest[T]]).right.map(seqTs => seqTs map backwardsView))
     }
   }
 
@@ -105,17 +105,15 @@ class Rest(uriRoot: String,
         val deserialisedT: Either[Failure, Seq[T]] = serialiser.deserialise(request.getContentString())
         val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
         val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(persister.nextSequenceId)))
-
-        // TODO - CAS - 12/05/15 - Push the serialiser.formatsExcept[T] dependency into the persister
-        val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(pj => persister.save(Classy.name[T].toLowerCase, pj)(implicitly[Manifest[T]]))
+        val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(pj => persister.save(Resource.name[T], pj))
         val serialised: Either[Failure, String] = saved.right.map(t => s"""{"addedCount":"$t"}""")
         serialised
       } catch {
-        case e: Exception => Left(Failure.persistence(pathTo(Classy.name[T].toLowerCase), e.getStackTraceString))
+        case e: Exception => Left(Failure.persistence(pathTo(Resource.name[T]), e.getStackTraceString))
       }
 
       persisted match {
-        case Right(contents)  => render.body(contents).contentType(utf8Json).toFuture
+        case Right(contents) => render.body(contents).contentType(utf8Json).toFuture
         case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
       }
 

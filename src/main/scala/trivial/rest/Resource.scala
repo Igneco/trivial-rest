@@ -1,5 +1,7 @@
 package trivial.rest
 
+import scala.reflect.ClassTag
+
 // TODO - CAS - 23/04/15 - Introduces boilerplate. Looking for ways to remove it.
 trait Resource[T <: Resource[T]] {
   def id: Option[String]
@@ -10,4 +12,8 @@ trait Resource[T <: Resource[T]] {
   def withId(newId: String): T
 
   //  def createDate: String
+}
+
+object Resource {
+  def name[T : ClassTag]: String = Classy.name[T].toLowerCase
 }
