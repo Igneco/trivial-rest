@@ -47,7 +47,7 @@ class Rest(uriRoot: String,
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
       case Post => addPost(resourceName)
-      // case Get => /:resourceName/:id
+      // case Get => /:resourceName/:id  and  /:resourceName?name1=value1&name2=value2  (using the JSON AST DSL query support)
       case x => throw new UnsupportedOperationException(s"I haven't built support for $x yet")
     }
 
