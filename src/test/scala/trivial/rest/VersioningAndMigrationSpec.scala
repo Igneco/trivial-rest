@@ -104,7 +104,20 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
     response.body mustEqual jsonFor(Seq(ImperialPerson(None, "Bob", 73, 219)))
   }
 
-  "(3)(c) Change resource name, and map from new resource --> maintain backwards-compatibility for POST" in { fail("Post *might* not work") }
+  "(3)(c) Change resource name, and map from new resource --> maintain backwards-compatibility for POST" in {
+    givenExistingData("imperialperson", Seq())
+
+    server.rest.migrate[MetricPerson](
+      idempotentForwardMigration = identity,
+      oldResourceName = Some("imperialperson"),
+      backwardsView = ImperialAndMetricConverter.viewAsImperial) mustEqual Right(0)
+
+    post("/imperialperson", body = jsonFor(Seq(ImperialPerson(None, "Sue", 60, 170))))
+    response.code mustEqual 200
+
+    get("/metricperson")
+    response.body mustEqual jsonFor(Seq(MetricPerson(Some("0000101"), "Sue", 152, BigDecimal("33.3"))))
+  }
 
   def jsonFor[T](seqTs: Seq[T]): String = Serialization.write(seqTs)(Serialization.formats(NoTypeHints))
 

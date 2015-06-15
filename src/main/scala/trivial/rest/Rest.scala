@@ -82,7 +82,10 @@ class Rest(uriRoot: String,
   def migrate[T <: Resource[T] : ClassTag : Manifest](idempotentForwardMigration: (T) => T, backwardsView: (T) => AnyRef = identity[T] _, oldResourceName: Option[String] = None): Either[Failure, Int] = {
     // TODO - CAS - 09/06/15 - register the migration, so we can use it here for post() and get()
 
-    oldResourceName.foreach(name => backwardsCompatibleAlias(name, backwardsView))
+    oldResourceName.foreach{ name =>
+      backwardsCompatibleAlias(name, backwardsView)
+      addPost[T](name)
+    }
     persister.migrate(idempotentForwardMigration, oldResourceName)
   }
 
@@ -100,21 +103,15 @@ class Rest(uriRoot: String,
       val persisted: Either[Failure, String] = try {
         // TODO - CAS - 02/06/15 - Check we don't have an ID before we serialise? Write a test ... try to Post something with an ID
         val deserialisedT: Either[Failure, Seq[T]] = serialiser.deserialise(request.getContentString())
-
-
-        // MIGRATE HERE - Putting it into serialiser.deserialise means we can't control when it runs
-        // POST /api/oldname will need to be migrated here
-
-
         val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
         val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(persister.nextSequenceId)))
 
         // TODO - CAS - 12/05/15 - Push the serialiser.formatsExcept[T] dependency into the persister
-        val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(pj => persister.save(resourceName, pj)(implicitly[Manifest[T]]))
+        val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(pj => persister.save(Classy.name[T].toLowerCase, pj)(implicitly[Manifest[T]]))
         val serialised: Either[Failure, String] = saved.right.map(t => s"""{"addedCount":"$t"}""")
         serialised
       } catch {
-        case e: Exception => Left(Failure.persistence(pathTo(resourceName), e.getStackTraceString))
+        case e: Exception => Left(Failure.persistence(pathTo(Classy.name[T].toLowerCase), e.getStackTraceString))
       }
 
       persisted match {
@@ -128,12 +125,10 @@ class Rest(uriRoot: String,
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
-  def addGetAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
-    get(pathTo(resourceName)) { request => loadAll(resourceName) }
-  }
-
-  def loadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String) =
-    respond(persister.loadAll[T](resourceName)(implicitly[Manifest[T]]))
+  def addGetAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit =
+    get(pathTo(resourceName)) { request =>
+      respond(persister.loadAll[T](resourceName)(implicitly[Manifest[T]]))
+    }
 
   private def respond[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]): Future[ResponseBuilder] =
     result match {
