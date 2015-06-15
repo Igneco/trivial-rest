@@ -78,9 +78,18 @@ class Rest(uriRoot: String,
     this
   }
 
-  def migrate[T <: Resource[T] : ClassTag : Manifest](idempotentForwardMigration: (T) => T, oldResourceName: Option[String] = None): Either[Failure, Int] = {
+  //noinspection ConvertibleToMethodValue
+  def migrate[T <: Resource[T] : ClassTag : Manifest](idempotentForwardMigration: (T) => T, backwardsView: (T) => AnyRef = identity[T] _, oldResourceName: Option[String] = None): Either[Failure, Int] = {
     // TODO - CAS - 09/06/15 - register the migration, so we can use it here for post() and get()
+
+    oldResourceName.foreach(name => backwardsCompatibleAlias(name, backwardsView))
     persister.migrate(idempotentForwardMigration, oldResourceName)
+  }
+
+  private def backwardsCompatibleAlias[T <: Resource[T] : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {
+    get(s"/$alias") { request =>
+      respond(persister.loadAll[T](Classy.name[T].toLowerCase)(implicitly[Manifest[T]]).right.map(seqTs => seqTs map backwardsView))
+    }
   }
 
   def addPost[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
@@ -123,13 +132,14 @@ class Rest(uriRoot: String,
     get(pathTo(resourceName)) { request => loadAll(resourceName) }
   }
 
-  def loadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String) = {
-    // TODO - CAS - 12/05/15 - Push the serialiser.formatsExcept[T] dependency into the persister
-    persister.loadAll[T](resourceName)(implicitly[Manifest[T]]) match {
+  def loadAll[T <: Resource[T] with AnyRef : Manifest](resourceName: String) =
+    respond(persister.loadAll[T](resourceName)(implicitly[Manifest[T]]))
+
+  private def respond[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]): Future[ResponseBuilder] =
+    result match {
       case Right(seqTs) => render.body(serialiser.serialise(seqTs)).contentType(utf8Json).toFuture
       case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
     }
-  }
 
   get(s"${uriRoot.stripSuffix("/")}/:unsupportedResourceName") { request =>
     val unsupportedResource = request.routeParams("unsupportedResourceName")

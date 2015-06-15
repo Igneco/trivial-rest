@@ -58,7 +58,7 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
       case Currency(id, "XXX", _) => Currency(id, "XXX", "X")
       case other => other
     }
-    
+
     migrationResult mustEqual Right(3)
 
     get("/currency")
@@ -76,31 +76,32 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
       .left.map(f => f.reason must startWith ("No usable value for isoName"))
   }
 
-  // Example of an old Resource, no longer registered in Rest.
-  case class ImperialPerson(id: Option[String], name: String, heightInInches: Int, weightInPounds: Int)
-
+  // Requires (a) an Auxiliary constructor and (b) a companion object to be declared, even if it is empty.
   "(3)(a) Change resource name, and map from new resource --> migrate old data" in {
     val imperialPerson = ImperialPerson(None, "Bob", 73, 220)
     val metricPerson = MetricPerson(None, "Bob", 185, 29.1)
 
     givenExistingData("imperialperson", Seq(imperialPerson))
 
-    server.rest.migrate[MetricPerson](identity, Some("imperialperson")) mustEqual Right(1)
+    server.rest.migrate[MetricPerson](identity, oldResourceName = Some("imperialperson")) mustEqual Right(1)
 
     get("/metricperson")
 
     response.body mustEqual jsonFor(Seq(metricPerson))
   }
 
+  // TODO - CAS - 11/06/15 - Split into two tests: one for adding an alias, the other for backwards-compatibility with an older data format
   "(3)(b) Change resource name, and map from new resource --> maintain backwards-compatibility for GET" in {
-    val imperialPerson = ImperialPerson(None, "Bob", 73, 220)
-    val metricPerson = MetricPerson(None, "Bob", 185, 20.5)
+    givenExistingData("imperialperson", Seq(ImperialPerson(None, "Bob", 73, 220)))
 
-    givenExistingData("metricperson", Seq(metricPerson))
+    server.rest.migrate[MetricPerson](
+      idempotentForwardMigration = identity,
+      oldResourceName = Some("imperialperson"),
+      backwardsView = ImperialAndMetricConverter.viewAsImperial) mustEqual Right(1)
 
     get("/imperialperson")
 
-    response.body mustEqual jsonFor(Seq(imperialPerson))
+    response.body mustEqual jsonFor(Seq(ImperialPerson(None, "Bob", 73, 219)))
   }
 
   "(3)(c) Change resource name, and map from new resource --> maintain backwards-compatibility for POST" in { fail("Post *might* not work") }
