@@ -90,7 +90,7 @@ class Rest(uriRoot: String,
   }
 
   private def backwardsCompatibleAlias[T : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {
-    get(s"/$alias") { request =>
+    get(pathTo(alias)) { request =>
       respond(persister.loadAll[T](Resource.name[T]).right.map(seqTs => seqTs map backwardsView))
     }
   }
