@@ -5,11 +5,11 @@ import trivial.rest.TestDirectories._
 import trivial.rest.persistence.JsonOnFileSystem
 import trivial.rest.serialisation.Json4sSerialiser
 
-abstract class TestableFinatraServer extends FinatraServer {
+class TestableFinatraServer(uriRoot: String = "/") extends FinatraServer {
   val testDir = provisionedTestDir
   val serialiser = new Json4sSerialiser
   val persister = new JsonOnFileSystem(testDir, serialiser)
   val controller = new Controller {}
-  val rest = new RestExample("/", controller, serialiser, persister)
+  val rest = new RestExample(uriRoot, controller, serialiser, persister)
   register(controller)
 }

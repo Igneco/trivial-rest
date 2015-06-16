@@ -10,7 +10,6 @@ import scala.tools.nsc.FatalError
 
 /**
     USE CASES
-
                                                       Per-record   Requires Migration   Breaking change?
 
 (1) Add a new field (and a default)                   -            -                    Non-breaking, if client is tolerant reader
@@ -20,15 +19,10 @@ import scala.tools.nsc.FatalError
 (5) Change a field's type, e.g. Int to BigDecimal     -            Yes                  Breaks GET, POST requires a migration
 (6) Remove a field                                    -            -                    Breaks GET
 
-trait Migration[Before, After] {
-  def convert(before: Before, after: After): After
-}
-
-
  */
 class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHelper with OneInstancePerTest {
 
-  override val server = new TestableFinatraServer {}
+  override val server = new TestableFinatraServer()
 
   "(1) Add a field with a sensible default - post a Currency without the required 'symbol' field" in {
     val newCurrency = """[{"isoName":"NZD"}]"""
@@ -53,11 +47,11 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
 
     givenExistingData("currency", oldData)
 
-    val migrationResult = server.rest.migrate[Currency]{
+    val migrationResult = server.rest.migrate[Currency](forwardMigration = {
       case Currency(id, code, _) if code.endsWith("D") => Currency(id, code, "$")
       case Currency(id, "XXX", _) => Currency(id, "XXX", "X")
       case other => other
-    }
+    })
 
     migrationResult mustEqual Right(3)
 
@@ -71,7 +65,7 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
   "(2)(b) Change a field's data, based on other fields - migration failures are returned to the caller" in {
     givenExistingData("currency", Seq(NotACurrency("X", 2)))
 
-    server.rest.migrate[Currency](identity)
+    server.rest.migrate[Currency]()
       .right.map(i => fail("Should have bailed"))
       .left.map(f => f.reason must startWith ("No usable value for isoName"))
   }
@@ -83,7 +77,7 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
 
     givenExistingData("imperialperson", Seq(imperialPerson))
 
-    server.rest.migrate[MetricPerson](identity, oldResourceName = Some("imperialperson")) mustEqual Right(1)
+    server.rest.migrate[MetricPerson](oldResourceName = Some("imperialperson")) mustEqual Right(1)
 
     get("/metricperson")
 
@@ -95,7 +89,6 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
     givenExistingData("imperialperson", Seq(ImperialPerson(None, "Bob", 73, 220)))
 
     server.rest.migrate[MetricPerson](
-      idempotentForwardMigration = identity,
       oldResourceName = Some("imperialperson"),
       backwardsView = ImperialAndMetricConverter.viewAsImperial) mustEqual Right(1)
 
@@ -108,7 +101,6 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
     givenExistingData("imperialperson", Seq())
 
     server.rest.migrate[MetricPerson](
-      idempotentForwardMigration = identity,
       oldResourceName = Some("imperialperson"),
       backwardsView = ImperialAndMetricConverter.viewAsImperial) mustEqual Right(0)
 

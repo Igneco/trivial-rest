@@ -78,15 +78,15 @@ class Rest(uriRoot: String,
     this
   }
 
-  //noinspection ConvertibleToMethodValue
-  def migrate[T <: Resource[T] : ClassTag : Manifest](idempotentForwardMigration: (T) => T, backwardsView: (T) => AnyRef = identity[T] _, oldResourceName: Option[String] = None): Either[Failure, Int] = {
-    // TODO - CAS - 09/06/15 - register the migration, so we can use it here for post() and get()
+  def migrate[T <: Resource[T] : ClassTag : Manifest](forwardMigration: (T) => T = identity[T] _,
+                                                      backwardsView: (T) => AnyRef = identity[T] _,
+                                                      oldResourceName: Option[String] = None): Either[Failure, Int] = {
 
     oldResourceName.foreach{ name =>
       backwardsCompatibleAlias(name, backwardsView)
       addPost[T](name)
     }
-    persister.migrate(idempotentForwardMigration, oldResourceName)
+    persister.migrate(forwardMigration, oldResourceName)
   }
 
   private def backwardsCompatibleAlias[T : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {

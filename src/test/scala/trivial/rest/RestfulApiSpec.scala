@@ -135,6 +135,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     val persisterMock: Persister = mock[Persister]
     val formats: Formats = mock[Formats]
     val serialiserMock: Serialiser = mock[Serialiser]
+
     serialiser_expects_registerResource[Spaceship]
     serialiser_expects_registerResource[Vector]
     serialiser_expects_registerResource[Planet]
@@ -162,7 +163,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
       (serialiserMock.formatsExcept[T] (_: ClassTag[T])).expects(*).returning(formats).anyNumberOfTimes()
     }
 
-    def serialiser_expects_serialise[T <: Resource[T] : ClassTag] = {
+    def serialiser_expects_serialise[T <: AnyRef : ClassTag] = {
       (serialiserMock.serialise[T](_: Seq[T])(_: ClassTag[T])).expects(*, *).returning(s"<A serialised ${Classy.name[T]}>")
     }
 
