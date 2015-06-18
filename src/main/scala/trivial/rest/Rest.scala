@@ -86,7 +86,12 @@ class Rest(uriRoot: String,
       backwardsCompatibleAlias(name, backwardsView)
       addPost[T](name)
     }
-    persister.migrate(forwardMigration, oldResourceName)
+
+    try {
+      persister.migrate(forwardMigration, oldResourceName)
+    } catch {
+      case e: Exception => Left(Failure(500, s"Migration failed, due to: ${e.toString}\n${e.getStackTraceString}"))
+    }
   }
 
   private def backwardsCompatibleAlias[T : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {

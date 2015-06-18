@@ -29,7 +29,10 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
 
     FileSystem.move(assuredFile(docRoot, sourceName), fileFor(backupName))
 
-    loadAll[T](backupName).right.map(_.map(forward)).right.flatMap(seqTs => save(targetName, seqTs))
+    if (fileFor(backupName).slurp().trim.isEmpty)
+      Right(0)
+    else
+      loadAll[T](backupName).right.map(_.map(forward)).right.flatMap(seqTs => save(targetName, seqTs))
   }
 
   private lazy val timestampFormat: DateTimeFormatter = DateTimeFormat.forPattern("yyyyddMMHHmmssSSS")

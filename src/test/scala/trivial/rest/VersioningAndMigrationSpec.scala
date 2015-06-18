@@ -111,6 +111,18 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
     response.body mustEqual jsonFor(Seq(MetricPerson(Some("0000101"), "Sue", 152, BigDecimal("33.3"))))
   }
 
+  "If there is no data to migrate, we receive an update count of zero, not a failure" in {
+    server.rest.migrate[Foo]() mustEqual Right(0)
+  }
+
+  "Exceptions during data migration result in Failures" in {
+    givenExistingData("currency", Seq(Currency(None, "ABC", "")))
+
+    server.rest.migrate[Currency](forwardMigration = t => throw new RuntimeException("Monkeys ate your data"))
+      .right.map(i => fail("Should have bailed"))
+      .left.map(f => f.reason must startWith ("Migration failed, due to: java.lang.RuntimeException: Monkeys ate your data"))
+  }
+
   def jsonFor[T](seqTs: Seq[T]): String = Serialization.write(seqTs)(Serialization.formats(NoTypeHints))
 
   def givenExistingData[T <: AnyRef](resourceName: String, resources: T) = {
