@@ -94,6 +94,7 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
 
     get("/imperialperson")
 
+    // Bob is now slightly lighter, due to a fortuitous loss of precision in my slightly spurious conversion code
     response.body mustEqual jsonFor(Seq(ImperialPerson(None, "Bob", 73, 219)))
   }
 
