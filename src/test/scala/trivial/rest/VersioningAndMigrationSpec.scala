@@ -124,19 +124,32 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
       .left.map(f => f.reason must startWith ("Migration failed, due to: java.lang.RuntimeException: Monkeys ate your data"))
   }
 
-  "Client code can pre-populate resources, so they are not empty when they are first released" in {
-    val planets = Seq(
-      Planet(Some("1"), "Mercury", "Quite warm"),
-      Planet(Some("2"), "Venus", "Tropical"),
-      Planet(Some("3"), "Earth", "Intemperate"),
-      Planet(Some("4"), "Mars", "Crisp mornings")
-    )
+  val planets = Seq(
+    Planet(None, "Mercury", "Quite warm"),
+    Planet(None, "Venus", "Tropical"),
+    Planet(None, "Earth", "Intemperate"),
+    Planet(None, "Mars", "Crisp mornings")
+  )
 
+  def withIds(ps: Seq[Planet], ids: Seq[String]): Seq[Planet] = planets.zip(ids).map(pi => pi._1.withId(pi._2))
+
+  "Client code can pre-populate resources, so they are not empty when they are first released" in {
     server.rest.prepopulate[Planet](planets) mustEqual Right(4)
 
     get("/planet")
 
-    response.body mustEqual jsonFor(planets)
+    response.body mustEqual jsonFor(withIds(planets, Seq("0000101", "0000102", "0000103", "0000104")))
+  }
+
+  "Prepopulated data is only added once" in {
+    pending
+    givenExistingData("planet", Seq(Planet(Some("6"), "Mercury", "Quite warm"), Planet(Some("7"), "Venus", "Tropical")))
+
+    server.rest.prepopulate[Planet](planets) mustEqual Right(2)
+
+    get("/planet")
+
+    response.body mustEqual jsonFor(withIds(planets, Seq("0000106", "0000107", "0000101", "0000102")))
   }
 
   def jsonFor[T](seqTs: Seq[T]): String = Serialization.write(seqTs)(Serialization.formats(NoTypeHints))

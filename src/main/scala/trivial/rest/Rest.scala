@@ -82,7 +82,7 @@ class Rest(uriRoot: String,
     // Eliminate dupes (ignoring IDs)
     //    val existing: Either[Failure, Seq[T]] = persister.loadAll[T](Resource.name[T])
 
-    persister.save(Resource.name[T], initialPopulation)
+      persist(Right(initialPopulation))
   }
 
   def migrate[T <: Resource[T] : ClassTag : Manifest](forwardMigration: (T) => T = identity[T] _,
@@ -108,30 +108,26 @@ class Rest(uriRoot: String,
   }
 
   def addPost[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
-
     post(pathTo(resourceName)) { request =>
-      // TODO - CAS - 27/04/15 - Yes, this will become a for-comp, but only when I have worked out all the bits
-
-      val persisted: Either[Failure, String] = try {
-        // TODO - CAS - 02/06/15 - Check we don't have an ID before we serialise? Write a test ... try to Post something with an ID
-        val deserialisedT: Either[Failure, Seq[T]] = serialiser.deserialise(request.getContentString())
-        val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
-        val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(persister.nextSequenceId)))
-        val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(pj => persister.save(Resource.name[T], pj))
-        val serialised: Either[Failure, String] = saved.right.map(t => s"""{"addedCount":"$t"}""")
-        serialised
-      } catch {
-        case e: Exception => Left(Failure.persistence(pathTo(Resource.name[T]), e.getStackTraceString))
-      }
-
-      persisted match {
-        case Right(contents) => render.body(contents).contentType(utf8Json).toFuture
+      // TODO - CAS - 02/06/15 - Check we don't have an ID before we serialise? Write a test ... try to Post something with an ID
+      persist(serialiser.deserialise(request.getContentString())) match {
+        case Right(contents) => render.body(s"""{"addedCount":"$contents"}""").contentType(utf8Json).toFuture
         case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
       }
 
       // TODO - CAS - 22/04/15 - Rebuild cache of T
     }
   }
+
+  private def persist[T <: Resource[T] : Manifest](deserialisedT: Either[Failure, Seq[T]]): Either[Failure, Int] =
+    try {
+      val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
+      val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(persister.nextSequenceId)))
+      val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(pj => persister.save(Resource.name[T], pj))
+      saved
+    } catch {
+      case e: Exception => Left(Failure.persistence(pathTo(Resource.name[T]), e.getStackTraceString))
+    }
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
