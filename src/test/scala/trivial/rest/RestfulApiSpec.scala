@@ -120,14 +120,6 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     response.body must equal( """Method not allowed: PUT. Methods supported by /spaceship are: GET all, POST""")
   }
 
-  "TODO - There is a way to migrate stucture changes" in {
-    pending
-  }
-
-  "TODO - There is a way to pre-populate resources, so they are not empty when they are first released" in {
-    pending
-  }
-
   // TODO - CAS - 27/04/15:
   // Caching spec
 

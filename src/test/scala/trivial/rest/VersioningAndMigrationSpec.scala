@@ -124,6 +124,21 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
       .left.map(f => f.reason must startWith ("Migration failed, due to: java.lang.RuntimeException: Monkeys ate your data"))
   }
 
+  "Client code can pre-populate resources, so they are not empty when they are first released" in {
+    val planets = Seq(
+      Planet(Some("1"), "Mercury", "Quite warm"),
+      Planet(Some("2"), "Venus", "Tropical"),
+      Planet(Some("3"), "Earth", "Intemperate"),
+      Planet(Some("4"), "Mars", "Crisp mornings")
+    )
+
+    server.rest.prepopulate[Planet](planets) mustEqual Right(4)
+
+    get("/planet")
+
+    response.body mustEqual jsonFor(planets)
+  }
+
   def jsonFor[T](seqTs: Seq[T]): String = Serialization.write(seqTs)(Serialization.formats(NoTypeHints))
 
   def givenExistingData[T <: AnyRef](resourceName: String, resources: T) = {

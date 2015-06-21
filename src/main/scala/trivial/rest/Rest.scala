@@ -78,6 +78,13 @@ class Rest(uriRoot: String,
     this
   }
 
+  def prepopulate[T <: Resource[T] : ClassTag : Manifest](initialPopulation: Seq[T]): Either[Failure, Int] = {
+    // Eliminate dupes (ignoring IDs)
+    //    val existing: Either[Failure, Seq[T]] = persister.loadAll[T](Resource.name[T])
+
+    persister.save(Resource.name[T], initialPopulation)
+  }
+
   def migrate[T <: Resource[T] : ClassTag : Manifest](forwardMigration: (T) => T = identity[T] _,
                                                       backwardsView: (T) => AnyRef = identity[T] _,
                                                       oldResourceName: Option[String] = None): Either[Failure, Int] = {
