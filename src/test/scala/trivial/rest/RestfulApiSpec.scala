@@ -78,13 +78,13 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     response.code must equal(404)
   }
 
-  "You can't POST an item with an ID - the system will allocate an ID upon resource creation" in {
+  "Validation failure. You can't POST an item with an ID - the system will allocate an ID upon resource creation" in {
     val fixture = new RestApiFixture()
     fixture.serialiser_expects_deserialise[Planet]("<A serialised Planet>", Seq(Planet(Some("123"), "Earth", "tolerable")))
 
     val response = fixture.app.post(s"/planet", body = "<A serialised Planet>")
 
-    response.body must equal("You can't POST an item with an ID - the system will allocate an ID upon resource creation")
+    response.body must include ("Validation failure. You can't POST an item with an ID - the system will allocate an ID upon resource creation")
     response.code must equal(403)
   }
 

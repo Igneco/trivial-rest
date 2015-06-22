@@ -45,4 +45,6 @@ case class MetricPerson(id: Option[String], name: String, heightInCentimetres: I
 // json4s requires you to declare a companion object, in addition to the auxiliary case class constructor defined above
 object MetricPerson
 
-case class Gender(id: Option[String], ishMael: Boolean) extends Resource[Gender] with HardCoded
+case class Gender(ishMael: Boolean) extends Resource[Gender] with HardCoded {
+  def id: Option[String] = if (ishMael) Some("Male") else Some("Female")
+}

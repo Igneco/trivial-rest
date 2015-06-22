@@ -153,7 +153,7 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
   }
 
   "We can pre-populate hard-coded Resources" in {
-    server.rest.prepopulate[Gender](Seq(Gender(None, true), Gender(None, false))) mustEqual Right(2)
+    server.rest.prepopulate[Gender](Seq(Gender(true), Gender(false))) mustEqual Right(2)
   }
 
   def jsonFor[T](seqTs: Seq[T]): String = Serialization.write(seqTs)(Serialization.formats(NoTypeHints))
