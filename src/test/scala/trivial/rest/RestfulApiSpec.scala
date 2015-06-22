@@ -132,10 +132,6 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
 //    response.code must equal(200)
 //    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
 //  }
-//
-//  "We can't POST hardcoded resources" in {
-//    fail("We can, actually")
-//  }
 
   // TODO - CAS - 27/04/15:
   // Caching spec

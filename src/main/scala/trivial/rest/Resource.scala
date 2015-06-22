@@ -18,6 +18,7 @@ object Resource {
   def name[T : ClassTag]: String = Classy.name[T].toLowerCase
 }
 
+// TODO - CAS - 22/06/15 - Make trying to POST one of these a compile failure
 trait HardCoded {
   def withId(newId: Option[String]): this.type = this
 }
