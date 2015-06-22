@@ -27,21 +27,21 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
 
+  val seqFoos = Seq(
+    Foo(Some("1"), "bar"),
+    Foo(Some("2"), "baz"),
+    Foo(Some("3"), "bazaar")
+  )
+
   "Registering a resource type for GET All allows bulk download of JSON data" in {
     val fixture = new RestApiFixture()
 
-    val foos = Seq(
-      Foo(Some("1"), "bar"),
-      Foo(Some("2"), "baz"),
-      Foo(Some("3"), "bazaar")
-    )
-
-    fixture.persister_expects_loadAll("foo", Right(foos))
+    fixture.persister_expects_loadAll("foo", Right(seqFoos))
     fixture.serialiser_expects_serialise[Foo]
 
     val response = fixture.app.get("/foo")
 
-    response.body must equal("<A serialised Foo>")
+    response.body must equal("<A serialised Seq[Foo]>")
     response.code must equal(200)
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
@@ -120,6 +120,23 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     response.body must equal( """Method not allowed: PUT. Methods supported by /spaceship are: GET all, POST""")
   }
 
+//  "We can GET a single item by ID" in {
+//    val fixture = new RestApiFixture()
+//
+//    fixture.persister_expects_load("foo", "3")
+//    fixture.serialiser_expects_serialise[Foo]
+//
+//    val response = fixture.app.get("/foo/3")
+//
+//    response.body must equal("<A Foo>")
+//    response.code must equal(200)
+//    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
+//  }
+//
+//  "We can't POST hardcoded resources" in {
+//    fail("We can, actually")
+//  }
+
   // TODO - CAS - 27/04/15:
   // Caching spec
 
@@ -156,7 +173,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     }
 
     def serialiser_expects_serialise[T <: AnyRef : ClassTag] = {
-      (serialiserMock.serialise[T](_: Seq[T])(_: ClassTag[T])).expects(*, *).returning(s"<A serialised ${Classy.name[T]}>")
+      (serialiserMock.serialise[T](_: Seq[T])(_: ClassTag[T])).expects(*, *).returning(s"<A serialised Seq[${Classy.name[T]}]>")
     }
 
     def serialiser_expects_deserialise[T <: Resource[T] : ClassTag](body: String, returns: Seq[T]) = {

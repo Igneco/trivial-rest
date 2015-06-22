@@ -152,6 +152,10 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
     response.body mustEqual jsonFor(withIds(planets, Seq("XXX", "YYY", "0000101", "0000102")))
   }
 
+  "We can pre-populate hard-coded Resources" in {
+    server.rest.prepopulate[Gender](Seq(Gender(None, true), Gender(None, false))) mustEqual Right(2)
+  }
+
   def jsonFor[T](seqTs: Seq[T]): String = Serialization.write(seqTs)(Serialization.formats(NoTypeHints))
 
   def givenExistingData[T <: AnyRef](resourceName: String, resources: T) = {

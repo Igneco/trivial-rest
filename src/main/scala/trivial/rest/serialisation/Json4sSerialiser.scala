@@ -2,7 +2,7 @@ package trivial.rest.serialisation
 
 import org.json4s._
 import org.json4s.native.{JsonParser, Serialization}
-import trivial.rest.{Classy, Failure, Resource}
+import trivial.rest.{ExceptionDecoder, Classy, Failure, Resource}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -72,7 +72,7 @@ class Json4sSerialiser extends Serialiser {
         case other => Left(Failure.notAnArray(body, other))
       }
     } catch {
-      case m: MappingException => Left(Failure(500, SerialiserExceptionHelper.huntCause(m, Seq.empty[String])))
+      case m: MappingException => Left(Failure(500, ExceptionDecoder.huntCause(m, Seq.empty[String])))
       case e: Exception => Left(Failure.deserialisation(e))
     }
 }

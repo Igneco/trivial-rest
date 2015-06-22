@@ -17,3 +17,7 @@ trait Resource[T <: Resource[T]] {
 object Resource {
   def name[T : ClassTag]: String = Classy.name[T].toLowerCase
 }
+
+trait HardCoded {
+  def withId(newId: Option[String]): this.type = this
+}

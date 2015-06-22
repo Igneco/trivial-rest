@@ -107,6 +107,8 @@ class Rest(uriRoot: String,
   }
 
   def addPost[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
+    // TODO - CAS - 22/06/15 - Don't allow POST for Hardcoded Resouces
+
     post(pathTo(resourceName)) { request =>
       // TODO - CAS - 02/06/15 - Check we don't have an ID before we serialise? Write a test ... try to Post something with an ID
       persist(serialiser.deserialise(request.getContentString())) match {
@@ -125,7 +127,7 @@ class Rest(uriRoot: String,
       val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(pj => persister.save(Resource.name[T], pj))
       saved
     } catch {
-      case e: Exception => Left(Failure.persistence(pathTo(Resource.name[T]), e.getStackTraceString))
+      case e: Exception => Left(Failure.persistence(pathTo(Resource.name[T]), ExceptionDecoder.readable(e)))
     }
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
