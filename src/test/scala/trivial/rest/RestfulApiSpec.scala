@@ -50,7 +50,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     val fixture = new RestApiFixture()
     val foo = Foo(None, "Baz")
     fixture.persister_expects_nextSequenceNumber("555")
-    fixture.persister_expects_save("spaceship", Seq(foo.withId("555")))
+    fixture.persister_expects_save("spaceship", Seq(foo.withId(Some("555"))))
     fixture.serialiser_expects_deserialise[Foo]("<A serialised Foo>", Seq(foo))
 
     val response = fixture.app.post(s"/spaceship", body = "<A serialised Foo>")

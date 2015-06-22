@@ -131,7 +131,7 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
     Planet(None, "Mars", "Crisp mornings")
   )
 
-  def withIds(ps: Seq[Planet], ids: Seq[String]): Seq[Planet] = planets.zip(ids).map(pi => pi._1.withId(pi._2))
+  def withIds(ps: Seq[Planet], ids: Seq[String]): Seq[Planet] = planets.zip(ids).map(pi => pi._1.withId(Some(pi._2)))
 
   "Client code can pre-populate resources, so they are not empty when they are first released" in {
     server.rest.prepopulate[Planet](planets) mustEqual Right(4)
@@ -142,14 +142,14 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
   }
 
   "Prepopulated data is only added once" in {
-    pending
-    givenExistingData("planet", Seq(Planet(Some("6"), "Mercury", "Quite warm"), Planet(Some("7"), "Venus", "Tropical")))
+    givenExistingData("planet", Seq(Planet(Some("XXX"), "Mercury", "Quite warm"), Planet(Some("YYY"), "Venus", "Tropical")))
 
     server.rest.prepopulate[Planet](planets) mustEqual Right(2)
+    server.rest.prepopulate[Planet](planets) mustEqual Right(0)
 
     get("/planet")
 
-    response.body mustEqual jsonFor(withIds(planets, Seq("0000106", "0000107", "0000101", "0000102")))
+    response.body mustEqual jsonFor(withIds(planets, Seq("XXX", "YYY", "0000101", "0000102")))
   }
 
   def jsonFor[T](seqTs: Seq[T]): String = Serialization.write(seqTs)(Serialization.formats(NoTypeHints))

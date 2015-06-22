@@ -79,16 +79,15 @@ class Rest(uriRoot: String,
   }
 
   def prepopulate[T <: Resource[T] : ClassTag : Manifest](initialPopulation: Seq[T]): Either[Failure, Int] = {
-    // Eliminate dupes (ignoring IDs)
-    //    val existing: Either[Failure, Seq[T]] = persister.loadAll[T](Resource.name[T])
+    def removeIds[T <: Resource[T]](seqTs: Seq[T]) = seqTs.map(_.withId(None))
+    def eliminateDupes(inputs: Seq[T], existing: Either[Failure, Seq[T]]) = (existing.right map removeIds).right.map(exs => removeIds(inputs) diff exs)
 
-      persist(Right(initialPopulation))
+    persist(eliminateDupes(initialPopulation, persister.loadAll[T](Resource.name[T])))
   }
 
   def migrate[T <: Resource[T] : ClassTag : Manifest](forwardMigration: (T) => T = identity[T] _,
                                                       backwardsView: (T) => AnyRef = identity[T] _,
                                                       oldResourceName: Option[String] = None): Either[Failure, Int] = {
-
     oldResourceName.foreach{ name =>
       backwardsCompatibleAlias(name, backwardsView)
       addPost[T](name)
@@ -122,7 +121,7 @@ class Rest(uriRoot: String,
   private def persist[T <: Resource[T] : Manifest](deserialisedT: Either[Failure, Seq[T]]): Either[Failure, Int] =
     try {
       val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
-      val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(persister.nextSequenceId)))
+      val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(Some(persister.nextSequenceId))))
       val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(pj => persister.save(Resource.name[T], pj))
       saved
     } catch {
