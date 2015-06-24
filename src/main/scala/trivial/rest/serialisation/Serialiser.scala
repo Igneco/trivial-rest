@@ -19,5 +19,8 @@ trait Serialiser {
   def withDefaultFields[T : ClassTag](defaultObject: T): Serialiser
   implicit def formatsExcept[T : ClassTag]: Formats
   def deserialise[T : Manifest](body: String): Either[Failure, Seq[T]]
+
+  // TODO - CAS - 24/06/15 - Combinify
   def serialise[T <: AnyRef : ClassTag](seqTs: Seq[T]): String = Serialization.write(seqTs)(formatsExcept[T])
+  def serialise[T <: AnyRef : ClassTag](t: T): String = Serialization.write(t)(formatsExcept[T])
 }

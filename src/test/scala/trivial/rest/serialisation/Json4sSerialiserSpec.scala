@@ -90,4 +90,12 @@ class Json4sSerialiserSpec extends WordSpec with MustMatchers {
     (defaultData merge actualData) mustEqual actualData  // RHS wins
     (actualData merge defaultData) mustEqual defaultData // RHS wins again
   }
+
+  "Exceptions are stored in the /exception subfolder" in {
+    pending
+  }
+
+  "Migrations are stored in the /migration subfolder" in {
+    pending
+  }
 }

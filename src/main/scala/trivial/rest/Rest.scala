@@ -36,6 +36,11 @@ class Rest(uriRoot: String,
 
   import controller._
 
+  notFound { request =>
+    // TODO - CAS - 24/06/15 - Match this to a resource path (res, res/:id or res?a=b)
+    render.status(404).plain(s"Unrecognised route ====> ${request.path}\nHave you forgotten to register a resource or specify the correct HTTP method?").toFuture
+  }
+
   def resource[T <: Resource[T] with AnyRef : ClassTag : Manifest](supportedMethods: HttpMethod*): Rest = {
     lazy val resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
 
@@ -47,7 +52,7 @@ class Rest(uriRoot: String,
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
       case Post => addPost(resourceName)
-      // case Get => /:resourceName/:id  and  /:resourceName?name1=value1&name2=value2  (using the JSON AST DSL query support)
+      case Get => addGet(resourceName)
       case x => throw new UnsupportedOperationException(s"I haven't built support for $x yet")
     }
 
@@ -132,6 +137,13 @@ class Rest(uriRoot: String,
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
+  // /:resourceName/:id  and  /:resourceName?name1=value1&name2=value2  (using the JSON AST DSL query support in JsonOnFileSystem)
+  def addGet[T <: Resource[T] : ClassTag : Manifest](resourceName: String): Unit = {
+    get(s"${pathTo(resourceName)}/:id") { request =>
+      respondSingle(persister.load[T](resourceName, request.routeParams("id")))
+    }
+  }
+
   def addGetAll[T <: AnyRef : Manifest](resourceName: String): Unit = {
     get(s"${pathTo(resourceName)}.json") { request => route.get(pathTo(resourceName)) }
     get(pathTo(resourceName)) { request =>
@@ -139,9 +151,16 @@ class Rest(uriRoot: String,
     }
   }
 
+  // TODO - CAS - 24/06/15 - Combinify
   private def respond[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]): Future[ResponseBuilder] =
     result match {
       case Right(seqTs) => render.body(serialiser.serialise(seqTs)).contentType(utf8Json).toFuture
+      case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
+    }
+
+  private def respondSingle[T <: AnyRef : ClassTag](result: Either[Failure, T]): Future[ResponseBuilder] =
+    result match {
+      case Right(t) => render.body(serialiser.serialise(t)).contentType(utf8Json).toFuture
       case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
     }
 

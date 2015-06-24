@@ -29,4 +29,10 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper {
 
     response.body must equal("""{"addedCount":"1"}""")
   }
+
+  "We can get one ExchangeRate by ID" in {
+    get("/my/api/exchangerate/2")
+
+    response.body must equal(s"""{"id":"2","rate":44.4,"currency":"3"}""")
+  }
 }

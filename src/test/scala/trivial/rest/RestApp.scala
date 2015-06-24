@@ -13,9 +13,9 @@ class RestExample(uriRoot: String,
     resource[Spaceship](GetAll, Post)
     resource[Vector](GetAll)
     resource[Planet](GetAll, Post)
-    resource[Foo](GetAll, Post)
+    resource[Foo](Get, GetAll, Post)
     resource[Currency](GetAll, Post)
-    resource[ExchangeRate](GetAll, Post)
+    resource[ExchangeRate](Get, GetAll, Post)
     resource[MetricPerson](GetAll, Post)
 }
 

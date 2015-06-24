@@ -13,6 +13,15 @@ import scala.reflect.io.{Directory, File}
 
 class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persister with Memo {
 
+  override def load[T <: Resource[T] : ClassTag : Manifest](resourceName: String, id: String): Either[Failure, T] = {
+    def toEither[T : ClassTag](option: Option[T]): Either[Failure, T] =
+      option.fold[Either[Failure, T]](Left(Failure(404, s"Not found: ${Classy.name[T]} with ID $id")))(t => Right(t))
+
+    loadAll[T](resourceName)
+      .right.map(seqTs => seqTs.find(_.id == Some(id)))
+      .right.flatMap(toEither[T])
+  }
+
   override def loadAll[T : Manifest](resourceName: String): Either[Failure, Seq[T]] =
     memo(resourceName) { actuallyLoadAll[T] }(resourceName)
 
