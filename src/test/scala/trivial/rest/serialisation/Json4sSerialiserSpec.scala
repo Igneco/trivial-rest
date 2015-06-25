@@ -2,7 +2,7 @@ package trivial.rest.serialisation
 
 import org.json4s.native.JsonMethods._
 import org.scalatest.{MustMatchers, WordSpec}
-import trivial.rest.{Gender, Currency, ExchangeRate}
+import trivial.rest.{Currency, ExchangeRate, Gender}
 
 class Json4sSerialiserSpec extends WordSpec with MustMatchers {
 
