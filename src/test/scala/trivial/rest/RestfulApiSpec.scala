@@ -130,22 +130,22 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     assertSuccessful(response, "<A serialised Foo>")
   }
 
-//  "Exceptions and the relevant JSON fragments are stored as resources" in {
-//    pending
-//  }
-//
-//  "The ID of an exception is returned with the error notification" in {
-//    pending
-//  }
-//
-//  "Migration results are stored as resources" in {
-//    pending
-//  }
-//
-//  "We are tolerant of URI-end slashes" in {
-//    Use the regex matcher: get("/api/monkey/?")
-//    fail("Totally intolerant")
-//  }
+  "Exceptions and the relevant JSON fragments are stored as resources" in {
+    pending
+  }
+
+  "The ID of an exception is returned with the error notification" in {
+    pending
+  }
+
+  "Migration results are stored as resources" in {
+    pending
+  }
+
+  "We are tolerant of URI-end slashes" in {
+    // Use the regex matcher: get("/api/monkey/?")
+    pending
+  }
 
   // TODO - CAS - 27/04/15:
   // Caching spec
