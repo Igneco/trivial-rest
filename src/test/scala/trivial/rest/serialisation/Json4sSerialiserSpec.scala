@@ -2,7 +2,7 @@ package trivial.rest.serialisation
 
 import org.json4s.native.JsonMethods._
 import org.scalatest.{MustMatchers, WordSpec}
-import trivial.rest.{Currency, ExchangeRate}
+import trivial.rest.{Gender, Currency, ExchangeRate}
 
 class Json4sSerialiserSpec extends WordSpec with MustMatchers {
 
@@ -91,11 +91,22 @@ class Json4sSerialiserSpec extends WordSpec with MustMatchers {
     (actualData merge defaultData) mustEqual defaultData // RHS wins again
   }
 
-  "Exceptions are stored in the /exception subfolder" in {
-    pending
-  }
+  "We can specify our own serialisation formats" in {
+    val laidBackBoolean = TypeSerialiser[Boolean](
+      b => if (b) "yup" else "nope",
+      {
+        case "yup"  => Some(true)
+        case "nope" => Some(false)
+        case other  => Some(false)
+      }
+    )
 
-  "Migrations are stored in the /migration subfolder" in {
-    pending
+    val serialiser = (new Json4sSerialiser).withTypeSerialiser(laidBackBoolean)
+
+    val female = Gender(false)
+    val serialFemale = """{"ishMael":"nope"}"""
+
+    serialiser.serialise(female) mustEqual serialFemale
+    serialiser.deserialise[Gender](serialFemale) mustEqual Right(Seq(female))
   }
 }

@@ -5,7 +5,7 @@ import org.json4s.{Formats, NoTypeHints}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, MustMatchers, WordSpec}
 import trivial.rest.TestDirectories._
-import trivial.rest.serialisation.{Serialiser, Json4sSerialiser, ResourceSerialiser}
+import trivial.rest.serialisation.{Serialiser, Json4sSerialiser, TypeSerialiser}
 import trivial.rest._
 
 import scala.reflect.ClassTag
@@ -119,6 +119,14 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
 
     jofs.nextSequenceId mustBe "0000001"
     jofs.nextSequenceId mustBe "0000002"
+  }
+
+  "Exceptions are stored in the /exception subfolder" in {
+    pending
+  }
+
+  "Migrations are stored in the /migration subfolder" in {
+    pending
   }
 
 //  "Migrating a Resource type to a new name changes the name of the target file" in { fail("Nope") }

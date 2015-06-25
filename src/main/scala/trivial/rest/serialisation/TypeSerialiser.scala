@@ -3,11 +3,11 @@ package trivial.rest.serialisation
 import org.json4s.JsonAST.JString
 import org.json4s._
 import org.json4s.reflect.TypeInfo
+import trivial.rest.Classy
 
 import scala.reflect.ClassTag
 
-// TODO - CAS - 06/05/15 - Just import Mange? Or copy verbatim, so there are fewer dependencies?
-case class ResourceSerialiser[T: ClassTag](serialise: T ⇒ String, deserialise: String ⇒ Option[T]) extends Serializer[T] {
+case class TypeSerialiser[T: ClassTag](serialise: T ⇒ String, deserialise: Any ⇒ Option[T]) extends Serializer[T] {
   private val TheClass       = implicitly[ClassTag[T]].runtimeClass
   private val serialiserName = TheClass.getSimpleName
 
@@ -20,5 +20,8 @@ case class ResourceSerialiser[T: ClassTag](serialise: T ⇒ String, deserialise:
 
   def serialize(implicit format: Formats): PartialFunction[Any, JValue] = {
     case x: T ⇒ JString(serialise(x))
+    // Pattern matching on type T will not recognise Boolean values, as they are not backed
+    // by a class at Runtime. They are just Java booleans.
+    case b: Boolean if Classy.runtimeClass[T] == classOf[Boolean] ⇒ JString(serialise(b.asInstanceOf[T]))
   }
 }
