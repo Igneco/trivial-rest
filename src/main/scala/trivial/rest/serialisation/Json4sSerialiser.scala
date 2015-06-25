@@ -18,6 +18,7 @@ class Json4sSerialiser extends Serialiser {
     // TODO - CAS - 15/06/15 - Push the ResourceSerialiser back into the client, so that we don't need to know anything about Resources here
     val serialiser = TypeSerialiser[T](_.id.getOrElse(""), { case id: String => hunt(allTheTs(formatsExcept[T]), id) })
     resourceSerialisers += Classy.runtimeClass[T] -> serialiser
+    this
   }
 
   override def withTypeSerialiser[T](typeSerialiser: TypeSerialiser[T]): Serialiser = {

@@ -91,7 +91,7 @@ class Json4sSerialiserSpec extends WordSpec with MustMatchers {
     (actualData merge defaultData) mustEqual defaultData // RHS wins again
   }
 
-  "We can specify our own serialisation formats" in {
+  "We can specify our own serialisation formats, using Boolean as a (surprisingly difficult) example" in {
     val laidBackBoolean = TypeSerialiser[Boolean](
       b => if (b) "yup" else "nope",
       {
@@ -104,9 +104,35 @@ class Json4sSerialiserSpec extends WordSpec with MustMatchers {
     val serialiser = (new Json4sSerialiser).withTypeSerialiser(laidBackBoolean)
 
     val female = Gender(false)
-    val serialFemale = """{"ishMael":"nope"}"""
+    val serialisedFemale = """{"ishMael":"nope"}"""
 
-    serialiser.serialise(female) mustEqual serialFemale
-    serialiser.deserialise[Gender](serialFemale) mustEqual Right(Seq(female))
+    serialiser.serialise(female) mustEqual serialisedFemale
+    serialiser.deserialise[Gender](serialisedFemale) mustEqual Right(Seq(female))
+  }
+
+  object SpuriousDecimals {
+    import util.matching.Regex
+
+    implicit class RegexContext(sc: StringContext) {
+      def r = new Regex(sc.parts.mkString, sc.parts.tail.map(_ => "x"): _*)
+    }
+
+    val typeSerialiser = TypeSerialiser[BigDecimal](
+    b => s"ABC $b",
+    { case r"""ABC (\d+\.\d+)$amount"""  => Some(BigDecimal(amount)) }
+    )
+  }
+
+  val pacificPeso: Currency = Currency(Some("1"), "ABC", "§")
+
+  "We can specify our own serialisation formats, using a spurious BigDecimal example" in {
+    val serialiser = (new Json4sSerialiser).registerResource[Currency](_ => Right(Seq(pacificPeso)))
+      .withTypeSerialiser(SpuriousDecimals.typeSerialiser)
+
+    val someRate = ExchangeRate(Some("an id"), BigDecimal("0.0000123"), pacificPeso)
+    val serialisedRate = """{"id":"an id","rate":"ABC 0.0000123","currency":"1"}"""
+
+    serialiser.serialise(someRate) mustEqual serialisedRate
+    serialiser.deserialise[ExchangeRate](serialisedRate) mustEqual Right(Seq(someRate))
   }
 }

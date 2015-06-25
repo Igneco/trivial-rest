@@ -15,7 +15,7 @@ import scala.reflect.ClassTag
  *   (b) bringing it in scope with implicit val formats = formatsExcept[T]
  */
 trait Serialiser {
-  def registerResource[T <: Resource[T] : ClassTag](allTheTs: Formats => Either[Failure, Seq[T]]): Unit
+  def registerResource[T <: Resource[T] : ClassTag](allTheTs: Formats => Either[Failure, Seq[T]]): Serialiser
   def withDefaultFields[T : ClassTag](defaultObject: T): Serialiser
   def withTypeSerialiser[T](typeSerialiser: TypeSerialiser[T]): Serialiser
   implicit def formatsExcept[T : ClassTag]: Formats
