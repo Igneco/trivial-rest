@@ -3,6 +3,7 @@
 ### TODO ###
 
 * Add GET with queries API
+* Don't allow duplicate Resources
 * Upgrade to latest version of finatra, for 2.11 support. Ditch 2.10 support.
 * Improve error handling as per giant ugly comments in Json4sSerialiser
 * Do all the TODOs. Start with Rest.

@@ -18,4 +18,8 @@ class ValidatorSpec extends WordSpec with MustMatchers {
 
     validator.validate(Seq(Gender(false))) mustEqual Right(Seq(Gender(false)))
   }
+
+  "We don't allow duplicates when posting new resources" in {
+    pending
+  }
 }
