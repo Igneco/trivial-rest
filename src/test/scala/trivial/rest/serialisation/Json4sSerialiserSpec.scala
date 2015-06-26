@@ -148,23 +148,26 @@ class Json4sSerialiserSpec extends WordSpec with MustMatchers {
                                          |  {"isoName":"USD","symbol":"$","country":"US"}
                                          |]""".stripMargin
 
-    val ast: JValue = JsonParser.parse(serialisedCurrencies)
-
-    val filteredCurrencies: List[JValue] = ast.filter {
-      case cur@JObject(fields) => fields.exists(field => field._1 == "country" && field._2 == JString("UK"))
-      case x => false
-    }
-    println(s"filteredCurrencies: ${filteredCurrencies}")
-
-    val fieldConstraints: List[(String, JsonAST.JValue)] = List(
+    val exampleFieldConstraints: List[(String, JsonAST.JValue)] = List(
       JField("country", JString("UK")),
       JField("symbol", JString("£"))
     )
 
+    def check(fieldConstraints: List[(String, JsonAST.JValue)], fieldsInT: List[(String, JsonAST.JValue)]) =
+      !fieldConstraints.exists(field => !fieldsInT.contains(field))
+
+    val ast: JValue = JsonParser.parse(serialisedCurrencies)
+
+    val filteredCurrencies: List[JValue] = ast.filter {
+      case JObject(fields) => check(exampleFieldConstraints, fields)
+      case x => false
+    }
+
+    println(s"filteredCurrencies: ${filteredCurrencies}")
+
     val matchingCurrencies: List[JObject] = for {
       JArray(currencies) <- ast
-      JObject(currency) <- currencies
-      if !fieldConstraints.exists(field => !currency.contains(field))
+      JObject(currency) <- currencies if check(exampleFieldConstraints, currency)
     } yield JObject(currency)
 
     println(s"matchingCurrencies: ${matchingCurrencies}")
