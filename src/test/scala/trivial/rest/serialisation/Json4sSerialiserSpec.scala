@@ -1,6 +1,6 @@
 package trivial.rest.serialisation
 
-import org.json4s.JValue
+import org.json4s.{JsonAST, JValue}
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.native.JsonMethods._
@@ -144,17 +144,30 @@ class Json4sSerialiserSpec extends WordSpec with MustMatchers {
     val serialisedCurrencies: String = """[
                                          |  {"isoName":"EUR","symbol":"€","country":"Many"},
                                          |  {"isoName":"GBP","symbol":"£","country":"UK"},
+                                         |  {"isoName":"GBp","symbol":"p","country":"UK"},
                                          |  {"isoName":"USD","symbol":"$","country":"US"}
                                          |]""".stripMargin
 
     val ast: JValue = JsonParser.parse(serialisedCurrencies)
 
-    val matchingCurrencies: Any = for {
+    val filteredCurrencies: List[JValue] = ast.filter {
+      case cur@JObject(fields) => fields.exists(field => field._1 == "country" && field._2 == JString("UK"))
+      case x => false
+    }
+    println(s"filteredCurrencies: ${filteredCurrencies}")
+
+    val matchingCurrencies: List[JObject] = for {
       JArray(currencies) <- ast
       JObject(currency) <- currencies
-      if currency contains JField("isoName", JString("GBP"))
-    } yield currency
+      if currency contains JField("country", JString("UK"))
+    } yield JObject(currency)
 
     println(s"matchingCurrencies: ${matchingCurrencies}")
+
+
+    val serialiser = (new Json4sSerialiser)
+    implicit val formats = serialiser.formatsExcept[String]
+    val matchingTs: Seq[Currency] = JArray(matchingCurrencies).extract[Seq[Currency]]
+    println(s"matchingTs: ${matchingTs}")
   }
 }
