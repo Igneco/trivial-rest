@@ -156,14 +156,18 @@ class Json4sSerialiserSpec extends WordSpec with MustMatchers {
     }
     println(s"filteredCurrencies: ${filteredCurrencies}")
 
+    val fieldConstraints: List[(String, JsonAST.JValue)] = List(
+      JField("country", JString("UK")),
+      JField("symbol", JString("£"))
+    )
+
     val matchingCurrencies: List[JObject] = for {
       JArray(currencies) <- ast
       JObject(currency) <- currencies
-      if currency contains JField("country", JString("UK"))
+      if !fieldConstraints.exists(field => !currency.contains(field))
     } yield JObject(currency)
 
     println(s"matchingCurrencies: ${matchingCurrencies}")
-
 
     val serialiser = (new Json4sSerialiser)
     implicit val formats = serialiser.formatsExcept[String]
