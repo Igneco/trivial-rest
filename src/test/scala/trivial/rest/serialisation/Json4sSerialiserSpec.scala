@@ -1,6 +1,10 @@
 package trivial.rest.serialisation
 
+import org.json4s.JValue
+import org.json4s.JsonAST._
+import org.json4s.JsonDSL._
 import org.json4s.native.JsonMethods._
+import org.json4s.native.JsonParser
 import org.scalatest.{MustMatchers, WordSpec}
 import trivial.rest.{Currency, ExchangeRate, Gender}
 
@@ -134,5 +138,23 @@ class Json4sSerialiserSpec extends WordSpec with MustMatchers {
 
     serialiser.serialise(someRate) mustEqual serialisedRate
     serialiser.deserialise[ExchangeRate](serialisedRate) mustEqual Right(Seq(someRate))
+  }
+
+  "We can filter a JSON AST" in {
+    val serialisedCurrencies: String = """[
+                                         |  {"isoName":"EUR","symbol":"€","country":"Many"},
+                                         |  {"isoName":"GBP","symbol":"£","country":"UK"},
+                                         |  {"isoName":"USD","symbol":"$","country":"US"}
+                                         |]""".stripMargin
+
+    val ast: JValue = JsonParser.parse(serialisedCurrencies)
+
+    val matchingCurrencies: Any = for {
+      JArray(currencies) <- ast
+      JObject(currency) <- currencies
+      if currency contains JField("isoName", JString("GBP"))
+    } yield currency
+
+    println(s"matchingCurrencies: ${matchingCurrencies}")
   }
 }
