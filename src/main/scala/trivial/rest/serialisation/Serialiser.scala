@@ -1,7 +1,8 @@
 package trivial.rest.serialisation
 
 import org.json4s.Formats
-import org.json4s.native.Serialization
+import org.json4s.JsonAST.JValue
+import org.json4s.native.{JsonParser, Serialization}
 import trivial.rest.{Resource, Failure}
 
 import scala.reflect.ClassTag
@@ -15,11 +16,16 @@ import scala.reflect.ClassTag
  *   (b) bringing it in scope with implicit val formats = formatsExcept[T]
  */
 trait Serialiser {
+  type JsonRepresentation
+
   def registerResource[T <: Resource[T] : ClassTag](allTheTs: Formats => Either[Failure, Seq[T]]): Serialiser
   def withDefaultFields[T : ClassTag](defaultObject: T): Serialiser
   def withTypeSerialiser[T](typeSerialiser: TypeSerialiser[T]): Serialiser
   implicit def formatsExcept[T : ClassTag]: Formats
   def deserialise[T : Manifest](body: String): Either[Failure, Seq[T]]
+  def deserialiseToType[T : Manifest](json: JsonRepresentation): Either[Failure, Seq[T]]
+  def deserialiseToJson[T: Manifest](body: String): JsonRepresentation
+  def emptyJson: JsonRepresentation
 
   // TODO - CAS - 24/06/15 - Combinify
   def serialise[T <: AnyRef : ClassTag](seqTs: Seq[T]): String = Serialization.write(seqTs)(formatsExcept[T])

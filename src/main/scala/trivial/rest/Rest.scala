@@ -146,8 +146,12 @@ class Rest(uriRoot: String,
 
   def addGetAll[T <: AnyRef : Manifest](resourceName: String): Unit = {
     get(s"${pathTo(resourceName)}.json") { request => route.get(pathTo(resourceName)) }
+
     get(pathTo(resourceName)) { request =>
-      respond(persister.loadAll[T](resourceName)(implicitly[Manifest[T]]))
+      if (request.params.nonEmpty)
+        respond(persister.loadOnly[T](resourceName, request.params))
+      else
+        respond(persister.loadAll[T](resourceName)(implicitly[Manifest[T]]))
     }
   }
 
@@ -164,6 +168,7 @@ class Rest(uriRoot: String,
       case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
     }
 
+  // TODO - CAS - 25/06/15 - Be more specific, e.g. /:unsuppported?abc --> GET is not supported for :unsupported, which only supports: POST, PUT
   get(s"${uriRoot.stripSuffix("/")}/:unsupportedResourceName") { request =>
     val unsupportedResource = request.routeParams("unsupportedResourceName")
     render.status(404).plain(s"Resource type not supported: $unsupportedResource").toFuture

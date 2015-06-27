@@ -172,7 +172,7 @@ class Json4sSerialiserSpec extends WordSpec with MustMatchers {
 
     println(s"matchingCurrencies: ${matchingCurrencies}")
 
-    val serialiser = (new Json4sSerialiser)
+    val serialiser = new Json4sSerialiser
     implicit val formats = serialiser.formatsExcept[String]
     val matchingTs: Seq[Currency] = JArray(matchingCurrencies).extract[Seq[Currency]]
     println(s"matchingTs: ${matchingTs}")

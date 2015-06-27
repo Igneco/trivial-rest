@@ -3,6 +3,8 @@ package trivial.rest.persistence
 import org.apache.commons.io.FileUtils._
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 import org.joda.time.{DateTime, DateTimeZone}
+import org.json4s.{JsonAST, JValue}
+import org.json4s.JsonAST._
 import org.json4s.native.Serialization
 import trivial.rest.caching.Memo
 import trivial.rest.serialisation.Serialiser
@@ -22,14 +24,36 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
       .right.flatMap(toEither[T])
   }
 
+  override def loadOnly[T : Manifest](resourceName: String, params: Map[String, String]): Either[Failure, Seq[T]] = {
+    // TODO - CAS - 26/06/15 - Push this type of filtering into Serialiser, with a default null implementation. The persister does not have to use it (but it can if it likes).
+    // TODO - CAS - 26/06/15 - Handle params which do not exist as fields in the Resource.
+    // TODO - CAS - 26/06/15 - We need to match the type of each field, for example numbers are not quoted Strings
+    def check(fieldConstraints: List[(String, JsonAST.JValue)], fieldsInT: List[(String, JsonAST.JValue)]) =
+      !fieldConstraints.exists(field => !fieldsInT.contains(field))
+
+    val constraints: List[(String, JString)] = params.map(param => param._1 -> JString(param._2)).toList
+
+    val ast: JValue = loadAstFromDisk(resourceName).asInstanceOf[JValue]
+
+    val matchingResources: List[JObject] = for {
+      JArray(resources) <- ast
+      JObject(resource) <- resources if check(constraints, resource)
+    } yield JObject(resource)
+
+    serialiser.deserialiseToType[T](JArray(matchingResources).asInstanceOf[serialiser.JsonRepresentation])
+  }
+
   override def loadAll[T : Manifest](resourceName: String): Either[Failure, Seq[T]] =
     memo(resourceName) { actuallyLoadAll[T] }(resourceName)
 
   private def actuallyLoadAll[T : Manifest](resourceName: String): Either[Failure, Seq[T]] =
+    serialiser.deserialiseToType[T](loadAstFromDisk(resourceName))
+
+  private def loadAstFromDisk(resourceName: String): serialiser.JsonRepresentation =
     if (hasLocalFile(fileFor(resourceName)))
-      serialiser.deserialise(fromDisk(resourceName))
+      serialiser.deserialiseToJson(fromDisk(resourceName))
     else
-      Right(Seq.empty)
+      serialiser.emptyJson
 
   override def migrate[T <: Resource[T] : ClassTag : Manifest](forward: (T) => T, oldResourceName: Option[String]): Either[Failure, Int] = {
     val targetName = Resource.name[T]

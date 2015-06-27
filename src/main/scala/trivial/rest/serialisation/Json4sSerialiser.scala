@@ -10,6 +10,8 @@ import scala.reflect.ClassTag
 
 class Json4sSerialiser extends Serialiser {
 
+  type JsonRepresentation = JValue
+
   private val resourceSerialisers = mutable.Map.empty[Class[_], TypeSerialiser[_]]
   private val fieldDefaults = mutable.Map.empty[Class[_], JValue]
   private val typeSerialisers = mutable.ListBuffer[TypeSerialiser[_]]()
@@ -72,17 +74,24 @@ class Json4sSerialiser extends Serialiser {
 
   TODO - CAS - 01/05/15 - Try parsing the JSON AST, and showing that, for MappingException, which is about converting AST -> T
   */
-  override def deserialise[T : Manifest](body: String): Either[Failure, Seq[T]] =
+  override def deserialise[T : Manifest](body: String): Either[Failure, Seq[T]] = deserialiseToType(deserialiseToJson(body))
+
+  def deserialiseToType[T : Manifest](json: JValue): Either[Failure, Seq[T]] =
     try {
       val defaultValues: JValue = fieldDefaults.getOrElse(Classy.runtimeClass[T], JObject())
 
-      JsonParser.parse(body) match {
+      json match {
         case JArray(resources) => Right(JArray(resources.map(defaultValues merge _)).extract[Seq[T]])
         case jObject: JObject => Right(Seq((defaultValues merge jObject).extract[T]))
-        case other => Left(Failure.notAnArray(body, other))
+        case JNothing => Right(Seq.empty)
+        case other => Left(Failure.unexpectedJson(json))
       }
     } catch {
       case m: MappingException => Left(Failure(500, ExceptionDecoder.huntCause(m, Seq.empty[String])))
       case e: Exception => Left(Failure.deserialisation(e))
     }
+
+  def deserialiseToJson[T: Manifest](body: String): JValue = JsonParser.parse(body)
+
+  override def emptyJson = JNothing
 }

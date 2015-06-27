@@ -130,6 +130,30 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     assertSuccessful(response, "<A serialised Foo>")
   }
 
+  "We can filter the complete list of resources by adding query parameters to a GET" in {
+    val fixture = new RestApiFixture()
+
+    fixture.persister_expects_loadOnly("foo", Map("bar" -> "someValue"), Right(seqFoos))
+    fixture.serialiser_expects_serialise[Foo]
+
+    val response = fixture.app.get("/foo?bar=someValue")
+
+    assertSuccessful(response, "<A serialised Seq[Foo]>")
+  }
+
+
+  "We can define special query endpoints to allow for custom queries by clients" in {
+    // e.g. find all Parties with partyDate in April
+    // The query is a Resource: PartiesByMonth(April)
+    // For query resources we can register a query function, which returns the target type, e.g. Party
+    // Then do a search/filter in T land
+    pending
+  }
+
+  "We can also POST queries" in {
+    pending
+  }
+
   "Exceptions and the relevant JSON fragments are stored as resources" in {
     pending
   }
@@ -194,12 +218,16 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
       (serialiserMock.deserialise[T](_: String)(_: Manifest[T])).expects(body, *).returning(Right(returns))
     }
 
-    def persister_expects_loadAll[T <: Resource[T]](expectedParam: String, returns: Either[Failure, Seq[T]]) = {
-      (persisterMock.loadAll[T](_: String)(_: Manifest[T])).expects(expectedParam, *).returning(returns)
+    def persister_expects_loadAll[T : Manifest](resourceName: String, returns: Either[Failure, Seq[T]]) = {
+      (persisterMock.loadAll[T](_: String)(_: Manifest[T])).expects(resourceName, *).returning(returns)
     }
 
-    def persister_expects_load[T <: Resource[T]](uri: String, key: String, returns: Either[Failure, T]) = {
-      (persisterMock.load[T](_: String, _: String)(_: ClassTag[T], _: Manifest[T])).expects(uri, key, *, *).returning(returns)
+    def persister_expects_loadOnly[T : Manifest](resourceName: String, params: Map[String, String], returns: Either[Failure, Seq[T]]) = {
+      (persisterMock.loadOnly[T](_: String, _ : Map[String, String])(_: Manifest[T])).expects(resourceName, params, *).returning(returns)
+    }
+
+    def persister_expects_load[T <: Resource[T]](resourceName: String, key: String, returns: Either[Failure, T]) = {
+      (persisterMock.load[T](_: String, _: String)(_: ClassTag[T], _: Manifest[T])).expects(resourceName, key, *, *).returning(returns)
     }
 
     val sequence = new mutable.Queue[String]()
