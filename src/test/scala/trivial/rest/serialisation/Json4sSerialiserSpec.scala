@@ -1,10 +1,6 @@
 package trivial.rest.serialisation
 
-import org.json4s.{JsonAST, JValue}
-import org.json4s.JsonAST._
-import org.json4s.JsonDSL._
 import org.json4s.native.JsonMethods._
-import org.json4s.native.JsonParser
 import org.scalatest.{MustMatchers, WordSpec}
 import trivial.rest.{Currency, ExchangeRate, Gender}
 
@@ -138,43 +134,5 @@ class Json4sSerialiserSpec extends WordSpec with MustMatchers {
 
     serialiser.serialise(someRate) mustEqual serialisedRate
     serialiser.deserialise[ExchangeRate](serialisedRate) mustEqual Right(Seq(someRate))
-  }
-
-  "We can filter a JSON AST" in {
-    val serialisedCurrencies: String = """[
-                                         |  {"isoName":"EUR","symbol":"€","country":"Many"},
-                                         |  {"isoName":"GBP","symbol":"£","country":"UK"},
-                                         |  {"isoName":"GBp","symbol":"p","country":"UK"},
-                                         |  {"isoName":"USD","symbol":"$","country":"US"}
-                                         |]""".stripMargin
-
-    val exampleFieldConstraints: List[(String, JsonAST.JValue)] = List(
-      JField("country", JString("UK")),
-      JField("symbol", JString("£"))
-    )
-
-    def check(fieldConstraints: List[(String, JsonAST.JValue)], fieldsInT: List[(String, JsonAST.JValue)]) =
-      !fieldConstraints.exists(field => !fieldsInT.contains(field))
-
-    val ast: JValue = JsonParser.parse(serialisedCurrencies)
-
-    val filteredCurrencies: List[JValue] = ast.filter {
-      case JObject(fields) => check(exampleFieldConstraints, fields)
-      case x => false
-    }
-
-    println(s"filteredCurrencies: ${filteredCurrencies}")
-
-    val matchingCurrencies: List[JObject] = for {
-      JArray(currencies) <- ast
-      JObject(currency) <- currencies if check(exampleFieldConstraints, currency)
-    } yield JObject(currency)
-
-    println(s"matchingCurrencies: ${matchingCurrencies}")
-
-    val serialiser = new Json4sSerialiser
-    implicit val formats = serialiser.formatsExcept[String]
-    val matchingTs: Seq[Currency] = JArray(matchingCurrencies).extract[Seq[Currency]]
-    println(s"matchingTs: ${matchingTs}")
   }
 }

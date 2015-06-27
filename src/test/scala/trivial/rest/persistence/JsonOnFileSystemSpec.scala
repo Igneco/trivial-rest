@@ -42,11 +42,8 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
     val serialiserMock: Serialiser = mock[Serialiser]
     val anyJson = JNothing.asInstanceOf[serialiserMock.JsonRepresentation]
 
-    def serialiser_expects_deserialiseToJson[T <: Resource[T] : ClassTag](body: String) = {
+    def serialiser_expects_deserialise_complete[T <: Resource[T] : ClassTag](body: String, returns: Seq[T]) = {
       (serialiserMock.deserialiseToJson[T](_: String)(_: Manifest[T])).expects(body, *).returning(anyJson)
-    }
-
-    def serialiser_expects_deserialiseToType[T <: Resource[T] : ClassTag](returns: Seq[T]) = {
       (serialiserMock.deserialiseToType[T](_: serialiserMock.JsonRepresentation)(_: Manifest[T])).expects(anyJson, *).returning(Right(returns))
     }
   }
@@ -62,8 +59,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
 
     val jofs = new JsonOnFileSystem(docRoot, serialiserMock)
 
-    serialiser_expects_deserialiseToJson("<Stuff loaded from disk>")
-    serialiser_expects_deserialiseToType(expected)
+    serialiser_expects_deserialise_complete("<Stuff loaded from disk>", expected)
 
     jofs.loadAll[ExchangeRate]("exchangerate")
   }
@@ -79,8 +75,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
 
     val jofs = new JsonOnFileSystem(docRoot, serialiserMock)
 
-    serialiser_expects_deserialiseToJson("<Stuff loaded from disk>")
-    serialiser_expects_deserialiseToType(expected)
+    serialiser_expects_deserialise_complete("<Stuff loaded from disk>", expected)
 
     jofs.loadAll[ExchangeRate]("exchangerate")
     jofs.loadAll[ExchangeRate]("exchangerate")

@@ -137,7 +137,6 @@ class Rest(uriRoot: String,
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
-  // /:resourceName/:id  and  /:resourceName?name1=value1&name2=value2  (using the JSON AST DSL query support in JsonOnFileSystem)
   def addGet[T <: Resource[T] : ClassTag : Manifest](resourceName: String): Unit = {
     get(s"${pathTo(resourceName)}/:id") { request =>
       respondSingle(persister.load[T](resourceName, request.routeParams("id")))
@@ -151,7 +150,7 @@ class Rest(uriRoot: String,
       if (request.params.nonEmpty)
         respond(persister.loadOnly[T](resourceName, request.params))
       else
-        respond(persister.loadAll[T](resourceName)(implicitly[Manifest[T]]))
+        respond(persister.loadAll[T](resourceName))
     }
   }
 

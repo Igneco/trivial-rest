@@ -28,7 +28,7 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
     // TODO - CAS - 26/06/15 - Push this type of filtering into Serialiser, with a default null implementation. The persister does not have to use it (but it can if it likes).
     // TODO - CAS - 26/06/15 - Handle params which do not exist as fields in the Resource.
     // TODO - CAS - 26/06/15 - We need to match the type of each field, for example numbers are not quoted Strings
-    def check(fieldConstraints: List[(String, JsonAST.JValue)], fieldsInT: List[(String, JsonAST.JValue)]) =
+    def checkAll(fieldConstraints: List[(String, JsonAST.JValue)], fieldsInT: List[(String, JsonAST.JValue)]) =
       !fieldConstraints.exists(field => !fieldsInT.contains(field))
 
     val constraints: List[(String, JString)] = params.map(param => param._1 -> JString(param._2)).toList
@@ -37,7 +37,7 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
 
     val matchingResources: List[JObject] = for {
       JArray(resources) <- ast
-      JObject(resource) <- resources if check(constraints, resource)
+      JObject(resource) <- resources if checkAll(constraints, resource)
     } yield JObject(resource)
 
     serialiser.deserialiseToType[T](JArray(matchingResources).asInstanceOf[serialiser.JsonRepresentation])
