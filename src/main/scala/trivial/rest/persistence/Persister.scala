@@ -7,8 +7,9 @@ import scala.reflect.ClassTag
 trait Persister {
   def save[T <: Resource[T] : Manifest](resourceName: String, content: Seq[T]): Either[Failure, Int]
   def loadAll[T : Manifest](resourceName: String): Either[Failure, Seq[T]]
-  def load[T <: Resource[T] : ClassTag : Manifest](resourceName: String, id: String): Either[Failure, T]
+  def load[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, T]
   def loadOnly[T : Manifest](resourceName: String, params: Map[String, String]): Either[Failure, Seq[T]]
+  def delete[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Int]
   def nextSequenceId: String
   def formatSequenceId(id: Int): String
 

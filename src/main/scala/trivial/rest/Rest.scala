@@ -53,6 +53,7 @@ class Rest(uriRoot: String,
       case GetAll => addGetAll(resourceName)
       case Post => addPost(resourceName)
       case Get => addGet(resourceName)
+      case Delete => addDelete(resourceName)
       case x => throw new UnsupportedOperationException(s"I haven't built support for $x yet")
     }
 
@@ -115,12 +116,7 @@ class Rest(uriRoot: String,
     // TODO - CAS - 22/06/15 - Don't allow POST for Hardcoded Resouces
 
     post(pathTo(resourceName)) { request =>
-      // TODO - CAS - 02/06/15 - Check we don't have an ID before we serialise? Write a test ... try to Post something with an ID
-      persist(serialiser.deserialise(request.getContentString())) match {
-        case Right(contents) => render.body(s"""{"addedCount":"$contents"}""").contentType(utf8Json).toFuture
-        case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
-      }
-
+      respondChanged(persist(serialiser.deserialise(request.getContentString())), "added")
       // TODO - CAS - 22/04/15 - Rebuild cache of T
     }
   }
@@ -129,13 +125,19 @@ class Rest(uriRoot: String,
     try {
       val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
       val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(Some(persister.nextSequenceId))))
-      val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(pj => persister.save(Resource.name[T], pj))
+      val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(resources => persister.save(Resource.name[T], resources))
       saved
     } catch {
       case e: Exception => Left(Failure.persistence(pathTo(Resource.name[T]), ExceptionDecoder.readable(e)))
     }
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
+
+  def addDelete[T <: Resource[T] : Manifest](resourceName: String): Unit = {
+    delete(s"${pathTo(resourceName)}/:id") { request =>
+      respondChanged(persister.delete[T](resourceName, request.routeParams("id")), "deleted")
+    }
+  }
 
   def addGet[T <: Resource[T] : ClassTag : Manifest](resourceName: String): Unit = {
     get(s"${pathTo(resourceName)}/:id") { request =>
@@ -154,7 +156,13 @@ class Rest(uriRoot: String,
     }
   }
 
-  // TODO - CAS - 24/06/15 - Combinify
+  // TODO - CAS - 24/06/15 - Combinify all three ...
+  def respondChanged[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, Int], direction: String): Future[ResponseBuilder] =
+    result match {
+      case Right(count) => render.body( s"""{"${direction}Count":"$count"}""").contentType(utf8Json).toFuture
+      case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
+    }
+
   private def respond[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]): Future[ResponseBuilder] =
     result match {
       case Right(seqTs) => render.body(serialiser.serialise(seqTs)).contentType(utf8Json).toFuture

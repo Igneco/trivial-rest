@@ -13,7 +13,7 @@ class RestExample(uriRoot: String,
     resource[Spaceship](GetAll, Post)
     resource[Vector](GetAll)
     resource[Planet](GetAll, Post)
-    resource[Foo](Get, GetAll, Post)
+    resource[Foo](Get, GetAll, Post, Delete)
     resource[Currency](Get, GetAll, Post)
     resource[ExchangeRate](Get, GetAll, Post)
     resource[MetricPerson](GetAll, Post)

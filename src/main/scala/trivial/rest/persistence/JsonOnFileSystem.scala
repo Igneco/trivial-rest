@@ -15,13 +15,26 @@ import scala.reflect.io.{Directory, File}
 
 class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persister with Memo {
 
-  override def load[T <: Resource[T] : ClassTag : Manifest](resourceName: String, id: String): Either[Failure, T] = {
+  override def load[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, T] = {
     def toEither[T : ClassTag](option: Option[T]): Either[Failure, T] =
-      option.fold[Either[Failure, T]](Left(Failure(404, s"Not found: ${Classy.name[T]} with ID $id")))(t => Right(t))
+      option.fold[Either[Failure, T]](Left(Failure(404, s"Not found: $resourceName with ID $id")))(t => Right(t))
 
     loadAll[T](resourceName)
       .right.map(seqTs => seqTs.find(_.id == Some(id)))
       .right.flatMap(toEither[T])
+  }
+
+  override def delete[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Int] = {
+    def loadAllButOne(t: T): Either[Failure, Seq[T]] =
+      loadAll[T](resourceName).right.map(ts => (ts.toSet[T] - t).toSeq)
+
+    for {
+      resource <- load[T](resourceName, id).right
+      allRemainingItems <- loadAllButOne(resource).right
+    } yield {
+      saveOnly(resourceName, allRemainingItems)
+      1
+    }
   }
 
   override def loadOnly[T : Manifest](resourceName: String, params: Map[String, String]): Either[Failure, Seq[T]] = {
@@ -73,11 +86,15 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
 
   override def save[T <: Resource[T] : Manifest](resourceName: String, newItems: Seq[T]): Either[Failure, Int] =
     loadAll[T](resourceName).right.map { previousItems =>
-      // TODO - CAS - 09/06/15 - Change this to call serialiser.serialise(previousItems ++ newItems)
-      assuredFile(docRoot, resourceName).writeAll(Serialization.write(previousItems ++ newItems)(serialiser.formatsExcept[T]))
-      unMemo(resourceName)
+      saveOnly(resourceName, previousItems ++ newItems)
       newItems.size
     }
+
+  private def saveOnly[T <: Resource[T] : Manifest](resourceName: String, toSave: Seq[T]): Unit = {
+    // TODO - CAS - 09/06/15 - Change this to call serialiser.serialise(previousItems ++ newItems)
+    assuredFile(docRoot, resourceName).writeAll(Serialization.write(toSave)(serialiser.formatsExcept[T]))
+    unMemo(resourceName)
+  }
 
   // TODO - CAS - 21/04/15 - Consider Scala async to make this write-behind: https://github.com/scala/async
   override def nextSequenceId: String = {

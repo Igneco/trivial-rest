@@ -141,6 +141,25 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     assertSuccessful(response, "<A serialised Seq[Foo]>")
   }
 
+  "We can delete a Resource by ID" in {
+    val fixture = new RestApiFixture()
+
+    fixture.persister_expects_delete("foo", "1")
+
+    val response = fixture.app.delete(s"/foo/1")
+
+    assertSuccessful(response, """{"deletedCount":"1"}""")
+  }
+
+  "We can PUT updates to Resources" in {
+    pending
+  }
+
+  "We can specify per Resource whether duplicates are allowed" in {
+    // Some Resources might quite rightly contain duplicates
+    // We should specify per Resource whether duplicates are allowed
+    pending
+  }
 
   "We can define special query endpoints to allow for custom queries by clients" in {
     // e.g. find all Parties with partyDate in April
@@ -227,7 +246,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     }
 
     def persister_expects_load[T <: Resource[T]](resourceName: String, key: String, returns: Either[Failure, T]) = {
-      (persisterMock.load[T](_: String, _: String)(_: ClassTag[T], _: Manifest[T])).expects(resourceName, key, *, *).returning(returns)
+      (persisterMock.load[T](_: String, _: String)(_: Manifest[T])).expects(resourceName, key, *).returning(returns)
     }
 
     val sequence = new mutable.Queue[String]()
@@ -236,8 +255,12 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
       (persisterMock.nextSequenceId _).expects().onCall(() => sequence.dequeue()).anyNumberOfTimes()
     }
 
-    def persister_expects_save[T <: Resource[T]](expectedResource: String, expectedSeq: Seq[T]) = {
-      (persisterMock.save[T](_: String, _: Seq[T])(_: Manifest[T])).expects(expectedResource, expectedSeq, *).returning(Right(expectedSeq.size))
+    def persister_expects_save[T <: Resource[T]](resourceName: String, expectedSeq: Seq[T]) = {
+      (persisterMock.save[T](_: String, _: Seq[T])(_: Manifest[T])).expects(resourceName, expectedSeq, *).returning(Right(expectedSeq.size))
+    }
+
+    def persister_expects_delete[T <: Resource[T]](resourceName: String, id: String) = {
+      (persisterMock.delete[T](_: String, _: String)(_: Manifest[T])).expects(resourceName, id, *).returning(Right(1))
     }
   }
 }
