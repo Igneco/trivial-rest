@@ -67,7 +67,7 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
 
     server.rest.migrate[Currency]()
       .right.map(i => fail("Should have bailed"))
-      .left.map(f => f.reason must startWith ("No usable value for isoName"))
+      .left.map(f => f.describe must startWith ("No usable value for isoName"))
   }
 
   // Requires (a) an Auxiliary constructor and (b) a companion object to be declared, even if it is empty.
@@ -121,7 +121,7 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
 
     server.rest.migrate[Currency](forwardMigration = t => throw new RuntimeException("Monkeys ate your data"))
       .right.map(i => fail("Should have bailed"))
-      .left.map(f => f.reason must startWith ("Migration failed, due to: java.lang.RuntimeException: Monkeys ate your data"))
+      .left.map(f => f.describe must startWith ("Migration failed, due to: java.lang.RuntimeException: Monkeys ate your data"))
   }
 
   val planets = Seq(

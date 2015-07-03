@@ -2,10 +2,12 @@ package trivial.rest
 
 import org.json4s.JValue
 
-case class Failure(statusCode: Int, reason: String)
+case class Failure(statusCode: Int, reasons: String*) {
+  def describe = reasons mkString "\n"
+}
 
 object Failure {
-  def cannotContainAnId[T](idsAlreadyAllocated: Seq[T]) = Failure(403, s"Validation failure. You can't POST an item with an ID - the system will allocate an ID upon resource creation. Offending item(s):${idsAlreadyAllocated.mkString("\n    ")}")
+  def validation(httpMethod: HttpMethod, reasons: Seq[String]) = Failure(403, s"Validation failure(s) during $httpMethod:\n$reasons")
 
   // TODO - CAS - 26/06/15 - Pretty-print parsed?
   def unexpectedJson(parsed: JValue) = Failure(400,
@@ -13,5 +15,7 @@ object Failure {
 
   def deserialisation(e: Exception) = Failure(500, s"Failed to deserialise into [T], due to: $e")
 
-  def persistence(path: String, trace: String) = Failure(500, s"Failed to persist at $path: $trace")
+  def persistCreate(path: String, trace: String) = persistAny(path, trace, "create")
+  def persistUpdate(path: String, trace: String) = persistAny(path, trace, "update")
+  private def persistAny(path: String, trace: String, flavour: String) = Failure(500, s"Failed to $flavour resources at $path: $trace")
 }

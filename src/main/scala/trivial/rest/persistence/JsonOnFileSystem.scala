@@ -37,6 +37,14 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
     }
   }
 
+  // TODO - CAS - 03/07/15 - Look for a better way to do this, e.g. loadAll, modify the relevant T, then save all. At least that is atomic.
+  override def update[T <: Resource[T] : Manifest](resourceName: String, content: Seq[T]): Either[Failure, Int] = {
+    // TODO - CAS - 03/07/15 - Yes, massive hole here: if delete succeeds but create fails, we have lost the data
+    content.map(t => delete(resourceName, t.id.get))
+    // TODO - CAS - 03/07/15 - We should not try to re-create if the delete failed.
+    create(resourceName, content)
+  }
+
   override def loadOnly[T : Manifest](resourceName: String, params: Map[String, String]): Either[Failure, Seq[T]] = {
     // TODO - CAS - 26/06/15 - Push this type of filtering into Serialiser, with a default null implementation. The persister does not have to use it (but it can if it likes).
     // TODO - CAS - 26/06/15 - Handle params which do not exist as fields in the Resource.
@@ -78,13 +86,13 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
     if (fileFor(backupName).slurp().trim.isEmpty)
       Right(0)
     else
-      loadAll[T](backupName).right.map(_.map(forward)).right.flatMap(seqTs => save(targetName, seqTs))
+      loadAll[T](backupName).right.map(_.map(forward)).right.flatMap(seqTs => create(targetName, seqTs))
   }
 
   private lazy val timestampFormat: DateTimeFormatter = DateTimeFormat.forPattern("yyyyddMMHHmmssSSS")
   private def stamp(): String = DateTime.now(DateTimeZone.UTC).toString(timestampFormat)
 
-  override def save[T <: Resource[T] : Manifest](resourceName: String, newItems: Seq[T]): Either[Failure, Int] =
+  override def create[T <: Resource[T] : Manifest](resourceName: String, newItems: Seq[T]): Either[Failure, Int] =
     loadAll[T](resourceName).right.map { previousItems =>
       saveOnly(resourceName, previousItems ++ newItems)
       newItems.size

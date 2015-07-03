@@ -5,11 +5,17 @@ import trivial.rest.{Failure, Resource}
 import scala.reflect.ClassTag
 
 trait Persister {
-  def save[T <: Resource[T] : Manifest](resourceName: String, content: Seq[T]): Either[Failure, Int]
+  def create[T <: Resource[T] : Manifest](resourceName: String, content: Seq[T]): Either[Failure, Int]
+
+  // TODO - CAS - 03/07/15 - Combinify loadAll and loadOnly
   def loadAll[T : Manifest](resourceName: String): Either[Failure, Seq[T]]
-  def load[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, T]
   def loadOnly[T : Manifest](resourceName: String, params: Map[String, String]): Either[Failure, Seq[T]]
+  def load[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, T]
+
+  def update[T <: Resource[T] : Manifest](resourceName: String, content: Seq[T]): Either[Failure, Int]
+
   def delete[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Int]
+
   def nextSequenceId: String
   def formatSequenceId(id: Int): String
 

@@ -90,7 +90,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
     val docRoot = Directory(nextTestDirPath)
     docRoot.exists mustBe false
 
-    new JsonOnFileSystem(docRoot, serialiser).save("foo", Seq(Foo(None, "bar")))
+    new JsonOnFileSystem(docRoot, serialiser).create("foo", Seq(Foo(None, "bar")))
 
     docRoot.exists mustBe true
   }
@@ -101,7 +101,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
     val jofs = new JsonOnFileSystem(docRoot, serialiser)
     targetFile.exists mustBe false
 
-    jofs.save("record", Seq(Foo(None, "bar")))
+    jofs.create("record", Seq(Foo(None, "bar")))
 
     targetFile.exists mustBe true
   }
@@ -110,8 +110,8 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
     val docRoot = nextTestDir
     val jofs = new JsonOnFileSystem(docRoot, serialiser)
 
-    jofs.save("foo", Seq(Foo(Some("1"), "bar")))
-    jofs.save("foo", Seq(Foo(Some("2"), "baz")))
+    jofs.create("foo", Seq(Foo(Some("1"), "bar")))
+    jofs.create("foo", Seq(Foo(Some("2"), "baz")))
 
     File(docRoot / "foo.json").slurp() mustEqual """[{"id":"1","bar":"bar"},{"id":"2","bar":"baz"}]"""
   }

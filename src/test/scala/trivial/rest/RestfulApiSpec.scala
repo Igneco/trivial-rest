@@ -21,12 +21,16 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
   }
 
-  "The root path provides a not-quite-hypertext list of supported resource types" in {
-    val fixture = new RestApiFixture()
+  implicit class ExpectedSuccess(response: MockResult) {
+    def -->(expectedBody: String): Unit = {
+      response.body must equal(expectedBody)
+      response.code must equal(200)
+      response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
+    }
+  }
 
-    val response = fixture.app.get("/")
-
-    assertSuccessful(response, """["currency","exchangerate","foo","metricperson","planet","spaceship","vector"]""")
+  "The root path provides a not-quite-hypertext list of supported resource types" in new RestApiFixture() {
+    app.get("/") --> """["currency","exchangerate","foo","metricperson","planet","spaceship","vector"]"""
   }
 
   val seqFoos = Seq(
@@ -35,51 +39,39 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     Foo(Some("3"), "bazaar")
   )
 
-  "Registering a resource type for GET All allows bulk download of JSON data" in {
-    val fixture = new RestApiFixture()
+  "Registering a resource type for GET All allows bulk download of JSON data" in new RestApiFixture() {
+    persister_expects_loadAll("foo", Right(seqFoos))
+    serialiser_expects_serialise[Foo]
 
-    fixture.persister_expects_loadAll("foo", Right(seqFoos))
-    fixture.serialiser_expects_serialise[Foo]
-
-    val response = fixture.app.get("/foo")
-
-    assertSuccessful(response, "<A serialised Seq[Foo]>")
+    app.get("/foo") --> "<A serialised Seq[Foo]>"
   }
 
-  "POSTing a new item saves it to the persister" in {
-    val fixture = new RestApiFixture()
+  "POSTing a new item saves it to the persister" in new RestApiFixture() {
     val foo = Foo(None, "Baz")
-    fixture.persister_expects_nextSequenceNumber("555")
-    fixture.persister_expects_save("spaceship", Seq(foo.withId(Some("555"))))
-    fixture.serialiser_expects_deserialise[Foo]("<A serialised Foo>", Seq(foo))
+    persister_expects_nextSequenceNumber("555")
+    persister_expects_save("spaceship", Seq(foo.withId(Some("555"))))
+    serialiser_expects_deserialise[Foo]("<A serialised Foo>", Seq(foo))
 
-    val response = fixture.app.post(s"/spaceship", body = "<A serialised Foo>")
-
-    assertSuccessful(response, """{"addedCount":"1"}""")
+    app.post(s"/spaceship", body = "<A serialised Foo>") --> """{"addedCount":"1"}"""
   }
 
-  "POSTing a new item request an ID for it from the Persister" in {
-    val fixture = new RestApiFixture()
+  "POSTing a new item request an ID for it from the Persister" in new RestApiFixture() {
+    persister_expects_nextSequenceNumber("666")
 
-    fixture.persister_expects_nextSequenceNumber("666")
-
-    fixture.app.post(s"/planet", body = """[{"name": "Earth", "classification": "tolerable"}]""")
+    app.post(s"/planet", body = """[{"name": "Earth", "classification": "tolerable"}]""")
   }
 
-  "We send back a 404 for Resource types we don't support" in {
-    val app = new RestApiFixture().app
-
+  "We send back a 404 for Resource types we don't support" in new RestApiFixture() {
     // TODO - CAS - 20/04/15 - Test this for PUT, POST, etc
     val response = app.get(s"/petName")
 
     assertFailed(response, 404, "Resource type not supported: petName")
   }
 
-  "Validation failure. You can't POST an item with an ID - the system will allocate an ID upon resource creation" in {
-    val fixture = new RestApiFixture()
-    fixture.serialiser_expects_deserialise[Planet]("<A serialised Planet>", Seq(Planet(Some("123"), "Earth", "tolerable")))
+  "Validation failure. You can't POST an item with an ID - the system will allocate an ID upon resource creation" in new RestApiFixture() {
+    serialiser_expects_deserialise[Planet]("<A serialised Planet>", Seq(Planet(Some("123"), "Earth", "tolerable")))
 
-    val response = fixture.app.post(s"/planet", body = "<A serialised Planet>")
+    val response = app.post(s"/planet", body = "<A serialised Planet>")
 
     assertFailed(response, 403, "Validation failure. You can't POST an item with an ID - the system will allocate an ID upon resource creation")
   }
@@ -89,9 +81,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     response.code must equal(statusCode)
   }
 
-  "POSTing items returns an updated count" in {
-    val fixture = new RestApiFixture()
-
+  "POSTing items returns an updated count" in new RestApiFixture() {
     val somePlanets = Seq(
       Planet(None, "Mercury", "bloody hot"),
       Planet(None, "Venus", "also bloody hot")
@@ -102,57 +92,45 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
       Planet(Some("2"), "Venus", "also bloody hot")
     )
 
-    fixture.serialiser_expects_deserialise[Planet]("<Some serialised Planets>", somePlanets)
-    fixture.persister_expects_nextSequenceNumber("1", "2")
-    fixture.persister_expects_save("planet", somePlanetsWithIds)
+    serialiser_expects_deserialise[Planet]("<Some serialised Planets>", somePlanets)
+    persister_expects_nextSequenceNumber("1", "2")
+    persister_expects_save("planet", somePlanetsWithIds)
 
-    val response = fixture.app.post(s"/planet", body = "<Some serialised Planets>")
-
-    assertSuccessful(response, """{"addedCount":"2"}""")
+    app.post(s"/planet", body = "<Some serialised Planets>") --> """{"addedCount":"2"}"""
   }
 
-  "Return a 405 for HTTP methods that are not supported" in {
-    val app = new RestApiFixture().app
-
+  "Return a 405 for HTTP methods that are not supported" in new RestApiFixture() {
     val response = app.put("/spaceship", body = "")
 
     assertFailed(response, 405, """Method not allowed: PUT. Methods supported by /spaceship are: GET all, POST""")
   }
 
-  "We can GET a single item by ID" in {
-    val fixture = new RestApiFixture()
+  "We can GET a single item by ID" in new RestApiFixture() {
+    persister_expects_load("foo", "3", Right(Foo(Some("1"), "bar")))
+    serialiser_expects_serialiseSingle[Foo]
 
-    fixture.persister_expects_load("foo", "3", Right(Foo(Some("1"), "bar")))
-    fixture.serialiser_expects_serialiseSingle[Foo]
-
-    val response = fixture.app.get("/foo/3")
-
-    assertSuccessful(response, "<A serialised Foo>")
+    app.get("/foo/3") --> "<A serialised Foo>"
   }
 
-  "We can filter the complete list of resources by adding query parameters to a GET" in {
-    val fixture = new RestApiFixture()
+  "We can filter the complete list of resources by adding query parameters to a GET" in new RestApiFixture() {
+    persister_expects_loadOnly("foo", Map("bar" -> "someValue"), Right(seqFoos))
+    serialiser_expects_serialise[Foo]
 
-    fixture.persister_expects_loadOnly("foo", Map("bar" -> "someValue"), Right(seqFoos))
-    fixture.serialiser_expects_serialise[Foo]
-
-    val response = fixture.app.get("/foo?bar=someValue")
-
-    assertSuccessful(response, "<A serialised Seq[Foo]>")
+    app.get("/foo?bar=someValue") --> "<A serialised Seq[Foo]>"
   }
 
-  "We can delete a Resource by ID" in {
-    val fixture = new RestApiFixture()
+  "We can delete a Resource by ID" in new RestApiFixture() {
+    persister_expects_delete("foo", "1")
 
-    fixture.persister_expects_delete("foo", "1")
-
-    val response = fixture.app.delete(s"/foo/1")
-
-    assertSuccessful(response, """{"deletedCount":"1"}""")
+    app.delete(s"/foo/1") --> """{"deletedCount":"1"}"""
   }
 
-  "We can PUT updates to Resources" in {
-    pending
+  "We can PUT updates to Resources" in new RestApiFixture() {
+    val foo = Foo(Some("1"), "Baz")
+    serialiser_expects_deserialise[Foo]("<A serialised Foo>", Seq(foo))
+    persister_expects_update("foo", Seq(foo))
+
+    app.put(s"/foo/1", body = "<A serialised Foo>") --> """{"updatedCount":"1"}"""
   }
 
   "We can specify per Resource whether duplicates are allowed" in {
@@ -182,6 +160,10 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
   }
 
   "Migration results are stored as resources" in {
+    pending
+  }
+
+  "Audit records are stored as resources" in {
     pending
   }
 
@@ -256,11 +238,15 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     }
 
     def persister_expects_save[T <: Resource[T]](resourceName: String, expectedSeq: Seq[T]) = {
-      (persisterMock.save[T](_: String, _: Seq[T])(_: Manifest[T])).expects(resourceName, expectedSeq, *).returning(Right(expectedSeq.size))
+      (persisterMock.create[T](_: String, _: Seq[T])(_: Manifest[T])).expects(resourceName, expectedSeq, *).returning(Right(expectedSeq.size))
     }
 
     def persister_expects_delete[T <: Resource[T]](resourceName: String, id: String) = {
       (persisterMock.delete[T](_: String, _: String)(_: Manifest[T])).expects(resourceName, id, *).returning(Right(1))
+    }
+
+    def persister_expects_update[T <: Resource[T]](resourceName: String, expectedSeq: Seq[T]) = {
+      (persisterMock.update[T](_: String, _: Seq[T])(_: Manifest[T])).expects(resourceName, expectedSeq, *).returning(Right(expectedSeq.size))
     }
   }
 }

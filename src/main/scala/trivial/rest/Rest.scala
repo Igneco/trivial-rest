@@ -52,6 +52,7 @@ class Rest(uriRoot: String,
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
       case Post => addPost(resourceName)
+      case Put => addPut(resourceName)
       case Get => addGet(resourceName)
       case Delete => addDelete(resourceName)
       case x => throw new UnsupportedOperationException(s"I haven't built support for $x yet")
@@ -78,7 +79,7 @@ class Rest(uriRoot: String,
       case Get => // get(pathTo(resourceName)) { unsupport } // us2(get, Get, ":idParam")
       case Put => unsupport(put, Put)
       case Delete => unsupport(delete, Delete)
-      case x => throw new UnsupportedOperationException(s"I haven't built support for $x yet")
+      case x => throw new UnsupportedOperationException(s"I haven't built unsupport for $x yet")
     }
 
     this
@@ -88,7 +89,7 @@ class Rest(uriRoot: String,
     def removeIds[T <: Resource[T]](seqTs: Seq[T]) = seqTs.map(_.withId(None))
     def eliminateDupes(inputs: Seq[T], existing: Either[Failure, Seq[T]]) = (existing.right map removeIds).right.map(exs => removeIds(inputs) diff exs)
 
-    persist(eliminateDupes(initialPopulation, persister.loadAll[T](Resource.name[T])))
+    createResources(eliminateDupes(initialPopulation, persister.loadAll[T](Resource.name[T])))
   }
 
   def migrate[T <: Resource[T] : ClassTag : Manifest](forwardMigration: (T) => T = identity[T] _,
@@ -116,22 +117,38 @@ class Rest(uriRoot: String,
     // TODO - CAS - 22/06/15 - Don't allow POST for Hardcoded Resouces
 
     post(pathTo(resourceName)) { request =>
-      respondChanged(persist(serialiser.deserialise(request.getContentString())), "added")
+      respondChanged(createResources(serialiser.deserialise(request.getContentString())), "added")
       // TODO - CAS - 22/04/15 - Rebuild cache of T
     }
   }
 
-  private def persist[T <: Resource[T] : Manifest](deserialisedT: Either[Failure, Seq[T]]): Either[Failure, Int] =
+  // TODO - CAS - 03/07/15 - Also combinify
+  private def createResources[T <: Resource[T] : Manifest](deserialisedT: Either[Failure, Seq[T]]): Either[Failure, Int] =
     try {
-      val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate)
+      val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate(_, Post))
       val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(Some(persister.nextSequenceId))))
-      val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(resources => persister.save(Resource.name[T], resources))
+      val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(resources => persister.create(Resource.name[T], resources))
       saved
     } catch {
-      case e: Exception => Left(Failure.persistence(pathTo(Resource.name[T]), ExceptionDecoder.readable(e)))
+      case e: Exception => Left(Failure.persistCreate(pathTo(Resource.name[T]), ExceptionDecoder.readable(e)))
+    }
+
+  private def updateResources[T <: Resource[T] : Manifest](deserialisedT: Either[Failure, Seq[T]]): Either[Failure, Int] =
+    try {
+      val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate(_, Put))
+      val saved: Either[Failure, Int] = validatedT.right.flatMap(resources => persister.update(Resource.name[T], resources))
+      saved
+    } catch {
+      case e: Exception => Left(Failure.persistUpdate(pathTo(Resource.name[T]), ExceptionDecoder.readable(e)))
     }
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
+
+  def addPut[T <: Resource[T] : Manifest](resourceName: String): Unit = {
+    put(s"${pathTo(resourceName)}/:id") { request =>
+      respondChanged(updateResources(serialiser.deserialise(request.getContentString())), "updated")
+    }
+  }
 
   def addDelete[T <: Resource[T] : Manifest](resourceName: String): Unit = {
     delete(s"${pathTo(resourceName)}/:id") { request =>
@@ -146,6 +163,7 @@ class Rest(uriRoot: String,
   }
 
   def addGetAll[T <: AnyRef : Manifest](resourceName: String): Unit = {
+    // TODO - CAS - 03/07/15 - Kill
     get(s"${pathTo(resourceName)}.json") { request => route.get(pathTo(resourceName)) }
 
     get(pathTo(resourceName)) { request =>
@@ -160,19 +178,19 @@ class Rest(uriRoot: String,
   def respondChanged[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, Int], direction: String): Future[ResponseBuilder] =
     result match {
       case Right(count) => render.body( s"""{"${direction}Count":"$count"}""").contentType(utf8Json).toFuture
-      case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
+      case Left(failure) => render.status(failure.statusCode).plain(failure.describe).toFuture
     }
 
   private def respond[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]): Future[ResponseBuilder] =
     result match {
       case Right(seqTs) => render.body(serialiser.serialise(seqTs)).contentType(utf8Json).toFuture
-      case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
+      case Left(failure) => render.status(failure.statusCode).plain(failure.describe).toFuture
     }
 
   private def respondSingle[T <: AnyRef : ClassTag](result: Either[Failure, T]): Future[ResponseBuilder] =
     result match {
       case Right(t) => render.body(serialiser.serialise(t)).contentType(utf8Json).toFuture
-      case Left(failure) => render.status(failure.statusCode).plain(failure.reason).toFuture
+      case Left(failure) => render.status(failure.statusCode).plain(failure.describe).toFuture
     }
 
   // TODO - CAS - 25/06/15 - Be more specific, e.g. /:unsuppported?abc --> GET is not supported for :unsupported, which only supports: POST, PUT
