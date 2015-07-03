@@ -15,15 +15,6 @@ import scala.reflect.io.{Directory, File}
 
 class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persister with Memo {
 
-  override def load[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, T] = {
-    def toEither[T : ClassTag](option: Option[T]): Either[Failure, T] =
-      option.fold[Either[Failure, T]](Left(Failure(404, s"Not found: $resourceName with ID $id")))(t => Right(t))
-
-    loadAll[T](resourceName)
-      .right.map(seqTs => seqTs.find(_.id == Some(id)))
-      .right.flatMap(toEither[T])
-  }
-
   override def delete[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Int] = {
     def loadAllButOne(t: T): Either[Failure, Seq[T]] =
       loadAll[T](resourceName).right.map(ts => (ts.toSet[T] - t).toSeq)
@@ -43,6 +34,20 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
     content.map(t => delete(resourceName, t.id.get))
     // TODO - CAS - 03/07/15 - We should not try to re-create if the delete failed.
     create(resourceName, content)
+  }
+
+  override def read[T <: Resource[T] : Manifest](resourceName: String, id: Option[String], params: Map[String, String]) = {
+    ???
+  }
+
+  override def load[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, T] = {
+    def toEither[T : ClassTag](option: Option[T]): Either[Failure, T] =
+      option.fold[Either[Failure, T]](Left(Failure(404, s"Not found: $resourceName with ID $id")))(t => Right(t))
+
+    for {
+      seqTs <- loadOnly[T](resourceName, Map("id" -> id)).right
+      result <- toEither[T](seqTs.headOption).right
+    } yield result
   }
 
   override def loadOnly[T : Manifest](resourceName: String, params: Map[String, String]): Either[Failure, Seq[T]] = {

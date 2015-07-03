@@ -3,7 +3,6 @@
 ### TODO ###
 
 CORE
-* Support HTTP PUT by ID
 * Don't allow duplicate Resources
 * Combine Get and GetAll. There should only be Get.
 * Return the IDs of items added, updated and deleted.
