@@ -29,3 +29,6 @@ VALIDATOR
 
 DISPLAY
 * A REST-supporting GUI, that acts like a DB admin tool, and allows for easy CRUD operations.
+
+MIGRATE
+* Refactor Persister.migrate as a dependency of PUT/update

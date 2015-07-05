@@ -106,7 +106,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
   }
 
   "We can GET a single item by ID" in new RestApiFixture() {
-    persister_expects_load("foo", "3", Right(Foo(Some("1"), "bar")))
+    persister_expects_load("foo", "3", Right(Seq(Foo(Some("1"), "bar"))))
     serialiser_expects_serialiseSingle[Foo]
 
     app.get("/foo/3") --> "<A serialised Foo>"
@@ -227,7 +227,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
       (persisterMock.loadOnly[T](_: String, _ : Map[String, String])(_: Manifest[T])).expects(resourceName, params, *).returning(returns)
     }
 
-    def persister_expects_load[T <: Resource[T]](resourceName: String, key: String, returns: Either[Failure, T]) = {
+    def persister_expects_load[T <: Resource[T]](resourceName: String, key: String, returns: Either[Failure, Seq[T]]) = {
       (persisterMock.load[T](_: String, _: String)(_: Manifest[T])).expects(resourceName, key, *).returning(returns)
     }
 

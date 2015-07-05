@@ -3,30 +3,26 @@ package trivial.rest.persistence
 import org.apache.commons.io.FileUtils._
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 import org.joda.time.{DateTime, DateTimeZone}
-import org.json4s.{JsonAST, JValue}
 import org.json4s.JsonAST._
 import org.json4s.native.Serialization
+import org.json4s.{JValue, JsonAST}
 import trivial.rest.caching.Memo
 import trivial.rest.serialisation.Serialiser
-import trivial.rest.{Classy, Failure, Resource}
+import trivial.rest.{Failure, Resource}
 
 import scala.reflect.ClassTag
 import scala.reflect.io.{Directory, File}
 
 class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persister with Memo {
 
-  override def delete[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Int] = {
-    def loadAllButOne(t: T): Either[Failure, Seq[T]] =
-      loadAll[T](resourceName).right.map(ts => (ts.toSet[T] - t).toSeq)
-
+  override def delete[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Int] =
     for {
-      resource <- load[T](resourceName, id).right
-      allRemainingItems <- loadAllButOne(resource).right
+      preExistingResources <- loadAll[T](resourceName).right
     } yield {
-      saveOnly(resourceName, allRemainingItems)
-      1
+      val withoutDeletedResource = preExistingResources.filterNot(_.id == Some(id))
+      saveOnly(resourceName, withoutDeletedResource)
+      preExistingResources.size - withoutDeletedResource.size
     }
-  }
 
   // TODO - CAS - 03/07/15 - Look for a better way to do this, e.g. loadAll, modify the relevant T, then save all. At least that is atomic.
   override def update[T <: Resource[T] : Manifest](resourceName: String, content: Seq[T]): Either[Failure, Int] = {
@@ -37,18 +33,15 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
   }
 
   override def read[T <: Resource[T] : Manifest](resourceName: String, id: Option[String], params: Map[String, String]) = {
-    ???
+    (id, params) match {
+      case (Some(id), _) => load[T](resourceName, id)
+      case (_, p) if p.nonEmpty => loadOnly[T](resourceName, p)
+      case _ => loadAll[T](resourceName)
+    }
   }
 
-  override def load[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, T] = {
-    def toEither[T : ClassTag](option: Option[T]): Either[Failure, T] =
-      option.fold[Either[Failure, T]](Left(Failure(404, s"Not found: $resourceName with ID $id")))(t => Right(t))
-
-    for {
-      seqTs <- loadOnly[T](resourceName, Map("id" -> id)).right
-      result <- toEither[T](seqTs.headOption).right
-    } yield result
-  }
+  override def load[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Seq[T]] =
+    loadOnly[T](resourceName, Map("id" -> id))
 
   override def loadOnly[T : Manifest](resourceName: String, params: Map[String, String]): Either[Failure, Seq[T]] = {
     // TODO - CAS - 26/06/15 - Push this type of filtering into Serialiser, with a default null implementation. The persister does not have to use it (but it can if it likes).

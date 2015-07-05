@@ -158,7 +158,10 @@ class Rest(uriRoot: String,
 
   def addGet[T <: Resource[T] : ClassTag : Manifest](resourceName: String): Unit = {
     get(s"${pathTo(resourceName)}/:id") { request =>
-      respondSingle(persister.load[T](resourceName, request.routeParams("id")))
+      def toEither[T : ClassTag](option: Option[T]): Either[Failure, T] =
+        option.fold[Either[Failure, T]](Left(Failure(404, s"Not found: $resourceName with ID ${request.routeParams("id")}")))(t => Right(t))
+
+      respondSingle(persister.load[T](resourceName, request.routeParams("id")).right.flatMap(seqTs => toEither(seqTs.headOption)))
     }
   }
 
