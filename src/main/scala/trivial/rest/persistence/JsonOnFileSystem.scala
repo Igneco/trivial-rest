@@ -17,7 +17,7 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
 
   override def delete[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Int] =
     for {
-      preExistingResources <- loadAll[T](resourceName).right
+      preExistingResources <- read[T](resourceName).right
     } yield {
       val withoutDeletedResource = preExistingResources.filterNot(_.id == Some(id))
       saveOnly(resourceName, withoutDeletedResource)
@@ -32,13 +32,11 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
     create(resourceName, content)
   }
 
-  override def read[T <: Resource[T] : Manifest](resourceName: String, id: Option[String], params: Map[String, String]) = {
-    (id, params) match {
-      case (Some(id), _) => load[T](resourceName, id)
-      case (_, p) if p.nonEmpty => loadOnly[T](resourceName, p)
-      case _ => loadAll[T](resourceName)
-    }
-  }
+  override def read[T <: Resource[T] : Manifest](resourceName: String, id: String) = read[T](resourceName, Map("id" -> id))
+
+  override def read[T <: Resource[T] : Manifest](resourceName: String, params: Map[String, String]) =
+    if (params.nonEmpty) loadOnly[T](resourceName, params)
+    else loadAll[T](resourceName)
 
   override def load[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Seq[T]] =
     loadOnly[T](resourceName, Map("id" -> id))
@@ -84,14 +82,14 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
     if (fileFor(backupName).slurp().trim.isEmpty)
       Right(0)
     else
-      loadAll[T](backupName).right.map(_.map(forward)).right.flatMap(seqTs => create(targetName, seqTs))
+      read[T](backupName).right.map(_.map(forward)).right.flatMap(seqTs => create(targetName, seqTs))
   }
 
   private lazy val timestampFormat: DateTimeFormatter = DateTimeFormat.forPattern("yyyyddMMHHmmssSSS")
   private def stamp(): String = DateTime.now(DateTimeZone.UTC).toString(timestampFormat)
 
   override def create[T <: Resource[T] : Manifest](resourceName: String, newItems: Seq[T]): Either[Failure, Int] =
-    loadAll[T](resourceName).right.map { previousItems =>
+    read[T](resourceName).right.map { previousItems =>
       saveOnly(resourceName, previousItems ++ newItems)
       newItems.size
     }

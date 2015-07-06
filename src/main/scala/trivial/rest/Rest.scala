@@ -45,9 +45,9 @@ class Rest(uriRoot: String,
     lazy val resourceName = implicitly[ClassTag[T]].runtimeClass.getSimpleName.toLowerCase
 
     resources += resourceName
-    serialiser.registerResource[T](allOf[T])
+    serialiser.registerResource[T](loadAllItems)
 
-    def allOf[R : Manifest]: Formats => Either[Failure, Seq[R]] = (formats) => persister.loadAll[R](resourceName)
+    def loadAllItems: Formats => Either[Failure, Seq[T]] = (formats) => persister.read[T](resourceName)
 
     supportedMethods.foreach {
       case GetAll => addGetAll(resourceName)
@@ -89,7 +89,7 @@ class Rest(uriRoot: String,
     def removeIds[T <: Resource[T]](seqTs: Seq[T]) = seqTs.map(_.withId(None))
     def eliminateDupes(inputs: Seq[T], existing: Either[Failure, Seq[T]]) = (existing.right map removeIds).right.map(exs => removeIds(inputs) diff exs)
 
-    createResources(eliminateDupes(initialPopulation, persister.loadAll[T](Resource.name[T])))
+    createResources(eliminateDupes(initialPopulation, persister.read[T](Resource.name[T])))
   }
 
   def migrate[T <: Resource[T] : ClassTag : Manifest](forwardMigration: (T) => T = identity[T] _,
@@ -107,9 +107,9 @@ class Rest(uriRoot: String,
     }
   }
 
-  private def backwardsCompatibleAlias[T : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {
+  private def backwardsCompatibleAlias[T <: Resource[T] : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {
     get(pathTo(alias)) { request =>
-      respond(persister.loadAll[T](Resource.name[T]).right.map(seqTs => seqTs map backwardsView))
+      respond(persister.read[T](Resource.name[T]).right.map(seqTs => seqTs map backwardsView))
     }
   }
 
@@ -165,7 +165,7 @@ class Rest(uriRoot: String,
     }
   }
 
-  def addGetAll[T <: AnyRef : Manifest](resourceName: String): Unit = {
+  def addGetAll[T <: Resource[T] : Manifest](resourceName: String): Unit = {
     // TODO - CAS - 03/07/15 - Kill
     get(s"${pathTo(resourceName)}.json") { request => route.get(pathTo(resourceName)) }
 
@@ -173,7 +173,7 @@ class Rest(uriRoot: String,
       if (request.params.nonEmpty)
         respond(persister.loadOnly[T](resourceName, request.params))
       else
-        respond(persister.loadAll[T](resourceName))
+        respond(persister.read[T](resourceName))
     }
   }
 

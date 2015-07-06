@@ -26,7 +26,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
     val docRoot = nextTestDir
     writeTestData("[]", docRoot / "foo.json")
 
-    new JsonOnFileSystem(docRoot, serialiser).loadAll("foo") mustEqual Right(Seq[Foo]())
+    new JsonOnFileSystem(docRoot, serialiser).read[Foo]("foo") mustEqual Right(Seq[Foo]())
   }
 
   def writeTestData(data: String, target: Path) = File(target).createFile().writeAll(data)
@@ -35,7 +35,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
     val docRoot = nextTestDir
     writeTestData( """[{"id":"1","bar":"bar"}]""", docRoot / "foo.json")
 
-    new JsonOnFileSystem(docRoot, serialiser).loadAll[Foo]("foo") mustEqual Right(Seq(Foo(Some("1"), "bar")))
+    new JsonOnFileSystem(docRoot, serialiser).read[Foo]("foo") mustEqual Right(Seq(Foo(Some("1"), "bar")))
   }
 
   trait MockedSerialiser {
@@ -61,7 +61,7 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
 
     serialiser_expects_deserialise_complete("<Stuff loaded from disk>", expected)
 
-    jofs.loadAll[ExchangeRate]("exchangerate")
+    jofs.read[ExchangeRate]("exchangerate")
   }
 
   "Memoising loadAll means we only hit the serialiser once per type" in new MockedSerialiser {
@@ -77,9 +77,9 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
 
     serialiser_expects_deserialise_complete("<Stuff loaded from disk>", expected)
 
-    jofs.loadAll[ExchangeRate]("exchangerate")
-    jofs.loadAll[ExchangeRate]("exchangerate")
-    jofs.loadAll[ExchangeRate]("exchangerate")
+    jofs.read[ExchangeRate]("exchangerate")
+    jofs.read[ExchangeRate]("exchangerate")
+    jofs.read[ExchangeRate]("exchangerate")
   }
 
   "We always persist resources as flat resources, with ID-references to component resources" in {

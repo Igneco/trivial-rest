@@ -16,7 +16,7 @@ val productionDependencies = Seq(
 val testDependencies = Seq(
   "org.scalatest" %% "scalatest" % "2.2.4" % "test",
   "org.mockito" % "mockito-all" % "2.0.2-beta" % "test",
-  "org.scalamock" %% "scalamock-scalatest-support" % "3.2" % "test"
+  "org.scalamock" %% "scalamock-scalatest-support" % "3.2.1" % "test"
 )
 
 libraryDependencies ++= productionDependencies ++ testDependencies

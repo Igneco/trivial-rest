@@ -40,7 +40,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
   )
 
   "Registering a resource type for GET All allows bulk download of JSON data" in new RestApiFixture() {
-    persister_expects_loadAll("foo", Right(seqFoos))
+    persister_expects_read("foo", returns = Right(seqFoos))
     serialiser_expects_serialise[Foo]
 
     app.get("/foo") --> "<A serialised Seq[Foo]>"
@@ -219,8 +219,9 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
       (serialiserMock.deserialise[T](_: String)(_: Manifest[T])).expects(body, *).returning(Right(returns))
     }
 
-    def persister_expects_loadAll[T : Manifest](resourceName: String, returns: Either[Failure, Seq[T]]) = {
-      (persisterMock.loadAll[T](_: String)(_: Manifest[T])).expects(resourceName, *).returning(returns)
+
+    def persister_expects_read[T <: Resource[T] : Manifest](resourceName: String, params: Map[String,String] = Map.empty, returns: Either[Failure, Seq[T]]) = {
+      (persisterMock.read[T](_: String, _ : Map[String,String])(_: Manifest[T])).expects(resourceName, params, *).returning(returns)
     }
 
     def persister_expects_loadOnly[T : Manifest](resourceName: String, params: Map[String, String], returns: Either[Failure, Seq[T]]) = {
@@ -230,6 +231,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     def persister_expects_load[T <: Resource[T]](resourceName: String, key: String, returns: Either[Failure, Seq[T]]) = {
       (persisterMock.load[T](_: String, _: String)(_: Manifest[T])).expects(resourceName, key, *).returning(returns)
     }
+
 
     val sequence = new mutable.Queue[String]()
     def persister_expects_nextSequenceNumber(values: String*) = {
