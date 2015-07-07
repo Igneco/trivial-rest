@@ -5,12 +5,13 @@ import com.twitter.finatra.test.SpecHelper
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names._
 import org.scalatest.{MustMatchers, OneInstancePerTest, WordSpec}
+import trivial.rest.TestDirectories._
 
 class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper with OneInstancePerTest {
 
   val existingCurrencies = """{"id":"1","rate":33.3,"currency":"2"},{"id":"2","rate":44.4,"currency":"3"}"""
 
-  override val server = new TestableFinatraServer("/my/api/")
+  override val server = new DemoApp(provisionedTestDir, "/my/api")
 
   "Charset for JSON data is UTF-8" in {
     get("/my/api/foo")
@@ -47,6 +48,11 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper with OneIn
     put("/my/api/foo/0000101", body = fooPenguins) --> """{"updatedCount":"1"}"""
 
     get("/my/api/foo/0000101")                     --> """{"id":"0000101","bar":"penguins"}"""
+  }
+
+  "Resources can fail validation checks on POST and PUT" in {
+    // assert that there are no duplicate {Foo}s on POST and PUT
+    pending
   }
 
   implicit class ExpectedSuccess(thingToExecute: => Unit) {

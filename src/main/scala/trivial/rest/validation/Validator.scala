@@ -31,7 +31,7 @@ trait Validator {
     }
   }
 
-  private def cannotContainAnId[T](idsAlreadyAllocated: Seq[T]) = Failure(403, s"Validation failure. You can't POST an item with an ID - the system will allocate an ID upon resource creation. Offending item(s):${idsAlreadyAllocated.mkString("\n    ")}")
+  private def cannotContainAnId[T](idsAlreadyAllocated: Seq[T]) = Failure(409, s"Validation failure. You can't POST an item with an ID - the system will allocate an ID upon resource creation. Offending item(s):${idsAlreadyAllocated.mkString("\n    ")}")
 }
 
 class RestRulesValidator extends Validator

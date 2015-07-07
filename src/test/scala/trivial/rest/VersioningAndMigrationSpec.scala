@@ -8,6 +8,8 @@ import org.scalatest.{OneInstancePerTest, MustMatchers, WordSpec}
 import scala.reflect.ClassTag
 import scala.tools.nsc.FatalError
 
+import trivial.rest.TestDirectories._
+
 /**
     USE CASES
                                                       Per-record   Requires Migration   Breaking change?
@@ -22,7 +24,7 @@ import scala.tools.nsc.FatalError
  */
 class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHelper with OneInstancePerTest {
 
-  override val server = new TestableFinatraServer()
+  override val server = new DemoApp(provisionedTestDir, "/")
 
   "(1) Add a field with a sensible default - post a Currency without the required 'symbol' field" in {
     val newCurrency = """[{"isoName":"NZD"}]"""
@@ -161,7 +163,7 @@ class VersioningAndMigrationSpec extends WordSpec with MustMatchers with SpecHel
 
   def givenExistingData[T <: AnyRef](resourceName: String, resources: T) = {
     val json = Serialization.write(resources)(Serialization.formats(NoTypeHints))
-    server.persister.assuredFile(server.testDir, resourceName).delete()
-    server.persister.assuredFile(server.testDir, resourceName).writeAll(json)
+    server.persister.assuredFile(server.docRoot, resourceName).delete()
+    server.persister.assuredFile(server.docRoot, resourceName).writeAll(json)
   }
 }

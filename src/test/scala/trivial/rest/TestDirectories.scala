@@ -11,7 +11,7 @@ object TestDirectories {
   private val suffix = new AtomicInteger(1)
   def nextTestDirPath = s"target/jofs/${base}-${suffix.incrementAndGet()}"
   def nextTestDir = Directory(nextTestDirPath).createDirectory()
-  def provisionedTestDir = {
+  def provisionedTestDir: Directory = {
     val docRoot = Directory(nextTestDir)
     docRoot.createDirectory()
     val resourcesDir = Directory("src/test/resources")

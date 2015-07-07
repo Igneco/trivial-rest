@@ -28,7 +28,7 @@ class Rest(uriRoot: String,
            controller: Controller,
            serialiser: Serialiser,
            persister: Persister,
-           validator: Validator = new RestRulesValidator) {
+           validator: Validator) {
 
   private val resources = mutable.ListBuffer[String]()
   private val forwardMigrations = mutable.Map.empty[Class[_], _ => _]

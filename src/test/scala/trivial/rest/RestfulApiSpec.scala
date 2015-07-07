@@ -9,6 +9,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{MustMatchers, WordSpec}
 import trivial.rest.persistence.Persister
 import trivial.rest.serialisation.Serialiser
+import trivial.rest.validation.Validator
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -48,6 +49,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
 
   "POSTing a new item saves it to the persister" in new RestApiFixture() {
     val foo = Foo(None, "Baz")
+    validator_expects_validate[Foo](Seq(foo), Post, Right(Seq(foo)))
     persister_expects_nextSequenceNumber("555")
     persister_expects_save("spaceship", Seq(foo.withId(Some("555"))))
     serialiser_expects_deserialise[Foo]("<A serialised Foo>", Seq(foo))
@@ -68,14 +70,6 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     assertFailed(response, 404, "Resource type not supported: petName")
   }
 
-  "Validation failure. You can't POST an item with an ID - the system will allocate an ID upon resource creation" in new RestApiFixture() {
-    serialiser_expects_deserialise[Planet]("<A serialised Planet>", Seq(Planet(Some("123"), "Earth", "tolerable")))
-
-    val response = app.post(s"/planet", body = "<A serialised Planet>")
-
-    assertFailed(response, 403, "Validation failure. You can't POST an item with an ID - the system will allocate an ID upon resource creation")
-  }
-
   def assertFailed(response: MockResult, statusCode: Int, message: String): Unit = {
     response.body must include(message)
     response.code must equal(statusCode)
@@ -93,6 +87,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     )
 
     serialiser_expects_deserialise[Planet]("<Some serialised Planets>", somePlanets)
+    validator_expects_validate[Planet](somePlanets, Post, Right(somePlanetsWithIds))
     persister_expects_nextSequenceNumber("1", "2")
     persister_expects_save("planet", somePlanetsWithIds)
 
@@ -128,15 +123,21 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
   "We can PUT updates to Resources" in new RestApiFixture() {
     val foo = Foo(Some("1"), "Baz")
     serialiser_expects_deserialise[Foo]("<A serialised Foo>", Seq(foo))
+    validator_expects_validate[Foo](Seq(foo), Put, Right(Seq(foo)))
     persister_expects_update("foo", Seq(foo))
 
     app.put(s"/foo/1", body = "<A serialised Foo>") --> """{"updatedCount":"1"}"""
   }
 
-  "We can specify per Resource whether duplicates are allowed" in {
-    // Some Resources might quite rightly contain duplicates
-    // We should specify per Resource whether duplicates are allowed
-    pending
+  "Validation failures are returned in the HTTP response with the relevant status code" in new RestApiFixture() {
+    val foo = Foo(Some("1"), "Baz")
+
+    serialiser_expects_deserialise[Foo]("<A serialised Foo>", Seq(foo))
+    validator_expects_validate[Foo](Seq(foo), Post, Left(Failure(666, "Some reason for the failure")))
+
+    val response = app.post(s"/foo", body = "<A serialised Foo>")
+
+    assertFailed(response, 666, "Some reason for the failure")
   }
 
   "We can define special query endpoints to allow for custom queries by clients" in {
@@ -179,6 +180,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     val persisterMock: Persister = mock[Persister]
     val formats: Formats = mock[Formats]
     val serialiserMock: Serialiser = mock[Serialiser]
+    val validatorMock: Validator = mock[Validator]
 
     serialiser_expects_registerResource[Spaceship]
     serialiser_expects_registerResource[Vector]
@@ -196,7 +198,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     serialiser_expects_formatsExcept[Currency]
 
     val controller = new Controller {}
-    val rest = new RestExample("/", controller, serialiserMock, persisterMock)
+    val rest = new RestExample("/", controller, serialiserMock, persisterMock, validatorMock)
     val app = MockApp(controller)
 
     def serialiser_expects_registerResource[T <: Resource[T] : ClassTag] = {
@@ -249,6 +251,10 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
 
     def persister_expects_update[T <: Resource[T]](resourceName: String, expectedSeq: Seq[T]) = {
       (persisterMock.update[T](_: String, _: Seq[T])(_: Manifest[T])).expects(resourceName, expectedSeq, *).returning(Right(expectedSeq.size))
+    }
+
+    def validator_expects_validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod, returns: Either[Failure, Seq[T]]) = {
+      (validatorMock.validate[T](_: Seq[T], _: HttpMethod)).expects(resources, httpMethod).returning(returns)
     }
   }
 }
