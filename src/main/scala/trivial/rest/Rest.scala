@@ -7,7 +7,7 @@ import com.twitter.util.Future
 import org.json4s._
 import trivial.rest.persistence.Persister
 import trivial.rest.serialisation.Serialiser
-import trivial.rest.validation.{RestRulesValidator, Validator}
+import trivial.rest.validation.Validator
 
 import scala.collection.mutable
 import scala.reflect.ClassTag

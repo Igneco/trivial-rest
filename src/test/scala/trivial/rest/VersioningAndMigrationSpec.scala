@@ -3,11 +3,7 @@ package trivial.rest
 import com.twitter.finatra.test.SpecHelper
 import org.json4s.NoTypeHints
 import org.json4s.native.Serialization
-import org.scalatest.{OneInstancePerTest, MustMatchers, WordSpec}
-
-import scala.reflect.ClassTag
-import scala.tools.nsc.FatalError
-
+import org.scalatest.{MustMatchers, OneInstancePerTest, WordSpec}
 import trivial.rest.TestDirectories._
 
 /**

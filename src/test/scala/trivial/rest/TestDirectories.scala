@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import trivial.rest.persistence.FileSystem
 
-import scala.reflect.io.{File, Directory}
+import scala.reflect.io.{Directory, File}
 
 object TestDirectories {
   private val base = System.currentTimeMillis
