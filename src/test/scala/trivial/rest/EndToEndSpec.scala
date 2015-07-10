@@ -37,30 +37,39 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper with OneIn
 
   "delete" in { pending }
 
+  val fooMonkeysNoId = """[{"bar":"monkeys"}]"""
+  val fooPenguinsWithId = """[{"id":"0000101","bar":"penguins"}]"""
+
   "We can amend an item and its ID stays the same" in {
-    val fooMonkeys = """[{"bar":"monkeys"}]"""
-    val fooPenguins = """[{"id":"0000101","bar":"penguins"}]"""
+    post("/my/api/foo", body = fooMonkeysNoId)           --> """{"addedCount":"1"}"""
 
-    post("/my/api/foo", body = fooMonkeys)         --> """{"addedCount":"1"}"""
+    get("/my/api/foo/0000101")                           --> """{"id":"0000101","bar":"monkeys"}"""
 
-    get("/my/api/foo/0000101")                     --> """{"id":"0000101","bar":"monkeys"}"""
+    put("/my/api/foo/0000101", body = fooPenguinsWithId) --> """{"updatedCount":"1"}"""
 
-    put("/my/api/foo/0000101", body = fooPenguins) --> """{"updatedCount":"1"}"""
-
-    get("/my/api/foo/0000101")                     --> """{"id":"0000101","bar":"penguins"}"""
+    get("/my/api/foo/0000101")                           --> """{"id":"0000101","bar":"penguins"}"""
   }
 
   "Resources can fail validation checks on POST and PUT" in {
-    // assert that there are no duplicate {Foo}s on POST and PUT
-    pending
+    post("/my/api/foo", body = fooPenguinsWithId)     --> (409 -> s"You can't POST an item with an ID; the system will allocate an ID upon resource creation. Offending ID: 0000101")
+
+    put("/my/api/foo/0000101", body = fooMonkeysNoId) --> (409 -> "Resource to update must have an ID")
   }
 
-  implicit class ExpectedSuccess(thingToExecute: => Unit) {
-    def -->(expectedBody: String): Unit = {
-      thingToExecute
-      response.body must equal(expectedBody)
-      response.code must equal(200)
+  implicit class Expectation(thingToExecute: => Unit) {
+    def -->(expectedBody: String) = {
+      assert(expectedBody, 200)
+
+      // TODO - CAS - 10/07/15 - Make POST response failures (below) proper JSON, too.
       response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
+    }
+
+    def -->(expected: (Int, String)) = { assert(expected._2, expected._1) }
+
+    private def assert(body: String, code: Int) = {
+      thingToExecute
+      response.body mustEqual body
+      response.code mustEqual code
     }
   }
 }

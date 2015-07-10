@@ -3,7 +3,7 @@ package trivial.rest.serialisation
 import org.json4s.JsonAST.JValue
 import org.json4s._
 import org.json4s.native.{JsonParser, Serialization}
-import trivial.rest.{Classy, ExceptionDecoder, Failure, Resource}
+import trivial.rest._
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -84,11 +84,11 @@ class Json4sSerialiser extends Serialiser {
         case JArray(resources) => Right(JArray(resources.map(defaultValues merge _)).extract[Seq[T]])
         case jObject: JObject => Right(Seq((defaultValues merge jObject).extract[T]))
         case JNothing => Right(Seq.empty)
-        case other => Left(Failure.unexpectedJson(json))
+        case other => Left(FailFactory.unexpectedJson(json))
       }
     } catch {
       case m: MappingException => Left(Failure(500, ExceptionDecoder.huntCause(m, Seq.empty[String])))
-      case e: Exception => Left(Failure.deserialisation(e))
+      case e: Exception => Left(FailFactory.deserialisation(e))
     }
 
   def deserialiseToJson[T: Manifest](body: String): JValue = JsonParser.parse(body)

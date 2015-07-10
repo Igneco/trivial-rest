@@ -4,8 +4,8 @@
 
 CORE
 * Don't allow duplicate Resources
-* Combine Get and GetAll. There should only be Get.
 * Return the IDs of items added, updated and deleted.
+* Make failures return proper json, e.g.: failures = [{code: 409, reason: "Blah"}]
 * Don't create backups of empty files
 * Use aggregate resources to pull back many things at once, e.g. /api/planets { ... all the planets ... }
 * Use aggregate resources to form custom queries, e.g. POST /api/query/ PlanetsWithYear(> 12 months) -> { ... all matching planets ... }

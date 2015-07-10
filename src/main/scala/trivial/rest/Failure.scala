@@ -2,11 +2,15 @@ package trivial.rest
 
 import org.json4s.JValue
 
-case class Failure(statusCode: Int, reasons: String*) {
+case class Failure(statusCode: Int, reasons: Seq[String]) {
   def describe = reasons mkString "\n"
 }
 
 object Failure {
+  def apply(statusCode: Int, reason: String): Failure = Failure(statusCode, Seq(reason))
+}
+
+object FailFactory {
   def validation(httpMethod: HttpMethod, reasons: Seq[String]) = Failure(403, s"Validation failure(s) during $httpMethod:\n$reasons")
 
   // TODO - CAS - 26/06/15 - Pretty-print parsed?

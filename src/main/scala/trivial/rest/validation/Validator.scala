@@ -3,35 +3,53 @@ package trivial.rest.validation
 import trivial.rest._
 
 trait Validator {
-  // TODO - CAS - 03/07/15 - Implementor should define a series of validation PartialFunctions. Thus:
-  //  resources.collect(/*allTheValidations*/) can gather all the error messages
+  def validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod): Either[Failure, Seq[T]]
+}
 
-//  def validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod): Either[Failure, Seq[T]] = {
-//    val failureReasons: Seq[String] = for {
-//      resource <- resources
-//      validation <- validations
-//      fail <- validation(resource, httpMethod)
-//    } yield fail
-//
-//    if (failureReasons.nonEmpty) Left(Failure.validation(httpMethod, failureReasons))
-//    else Right(resources)
-//  }
+trait ValidationRule {
+  def validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod): Seq[Failure]
+}
 
-  def validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod): Either[Failure, Seq[T]] = {
-    // TODO - CAS - 03/07/15 - Split this out into a validation, and partial match on (t, httpMethod). Check that a Resource to PUT has an ID.
-    if (httpMethod == Put) {
-      if (resources.forall(_.id.isDefined)) Right(resources) else Left(Failure(403, "Cannot update a Resource without an ID"))
-    } else {
-      val idsAlreadyAllocated = resources.filter(_.id.isDefined).filterNot{
+class RuleBasedValidator(rules: Seq[ValidationRule] = Seq(CommonRules.newResourcesCannotHaveAnId, CommonRules.resourcesToUpdateMustHaveAnId)) extends Validator {
+  def withRules[T <: Resource[T]](extraRules: ValidationRule*) = new RuleBasedValidator(rules ++ extraRules)
+
+  override def validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod): Either[Failure, Seq[T]] =
+    rules flatMap (rule => rule.validate(resources, httpMethod)) match {
+      case Nil => Right(resources)
+      case failures => Left(compress(failures))
+    }
+
+  private def compress(fail: Seq[Failure]): Failure = fail reduceLeft flatten
+
+  private def flatten(acc: Failure, next: Failure): Failure = next.copy(statusCode = Math.max(acc.statusCode, next.statusCode), reasons = acc.reasons ++ next.reasons)
+}
+
+object CommonRules {
+  def noDuplicates[T <: Resource[T]](allT: => Seq[T]): ValidationRule = new ValidationRule {
+    val withoutIds = allT.map(_.withId(None))
+
+    override def validate[T](resources: Seq[T], httpMethod: HttpMethod): Seq[Failure] =
+      (resources filter withoutIds.contains) map (t => Failure(409, s"A matching item already exists: $t"))
+  }
+
+  def resourcesToUpdateMustHaveAnId: ValidationRule = new ValidationRule {
+    override def validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod) =
+      resources collect {
+        case r if r.id.isEmpty && httpMethod == Put => Failure(409, s"Resource to update must have an ID")
+      }
+  }
+
+  def newResourcesCannotHaveAnId: ValidationRule = new ValidationRule {
+    override def validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod) = {
+      val idsAlreadyAllocated: Seq[T] = resources.filter(_.id.isDefined).filterNot{
         case h: HardCoded => true
         case other => false
       }
-      if (idsAlreadyAllocated.nonEmpty) Left(cannotContainAnId(idsAlreadyAllocated))
-      else Right(resources)
+
+      if (httpMethod == Post) idsAlreadyAllocated map {t =>
+        Failure(409, s"You can't POST an item with an ID; the system will allocate an ID upon resource creation. Offending ID: ${t.id.getOrElse("None")}")
+      }
+      else Nil
     }
   }
-
-  private def cannotContainAnId[T](idsAlreadyAllocated: Seq[T]) = Failure(409, s"Validation failure. You can't POST an item with an ID - the system will allocate an ID upon resource creation. Offending item(s):${idsAlreadyAllocated.mkString("\n    ")}")
 }
-
-class RestRulesValidator extends Validator

@@ -16,12 +16,6 @@ import scala.reflect.ClassTag
 
 class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
 
-  private def assertSuccessful(response: MockResult, expectedBody: String): Unit = {
-    response.body must equal(expectedBody)
-    response.code must equal(200)
-    response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
-  }
-
   implicit class ExpectedSuccess(response: MockResult) {
     def -->(expectedBody: String): Unit = {
       response.body must equal(expectedBody)
@@ -47,6 +41,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
     app.get("/foo") --> "<A serialised Seq[Foo]>"
   }
 
+  // TODO - CAS - 08/07/15 - Change the return type to: {added: [ {item1 URI}, {item2 URI} ... ]}
   "POSTing a new item saves it to the persister" in new RestApiFixture() {
     val foo = Foo(None, "Baz")
     validator_expects_validate[Foo](Seq(foo), Post, Right(Seq(foo)))

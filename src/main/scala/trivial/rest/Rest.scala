@@ -115,7 +115,6 @@ class Rest(uriRoot: String,
 
   def addPost[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
     // TODO - CAS - 22/06/15 - Don't allow POST for Hardcoded Resouces
-
     post(pathTo(resourceName)) { request =>
       respondChanged(createResources(serialiser.deserialise(request.getContentString())), "added")
       // TODO - CAS - 22/04/15 - Rebuild cache of T
@@ -130,7 +129,7 @@ class Rest(uriRoot: String,
       val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(resources => persister.create(Resource.name[T], resources))
       saved
     } catch {
-      case e: Exception => Left(Failure.persistCreate(pathTo(Resource.name[T]), ExceptionDecoder.readable(e)))
+      case e: Exception => Left(FailFactory.persistCreate(pathTo(Resource.name[T]), ExceptionDecoder.readable(e)))
     }
 
   private def updateResources[T <: Resource[T] : Manifest](deserialisedT: Either[Failure, Seq[T]]): Either[Failure, Int] =
@@ -139,7 +138,7 @@ class Rest(uriRoot: String,
       val saved: Either[Failure, Int] = validatedT.right.flatMap(resources => persister.update(Resource.name[T], resources))
       saved
     } catch {
-      case e: Exception => Left(Failure.persistUpdate(pathTo(Resource.name[T]), ExceptionDecoder.readable(e)))
+      case e: Exception => Left(FailFactory.persistUpdate(pathTo(Resource.name[T]), ExceptionDecoder.readable(e)))
     }
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
