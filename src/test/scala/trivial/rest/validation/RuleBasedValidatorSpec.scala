@@ -35,12 +35,8 @@ class RuleBasedValidatorSpec extends WordSpec with MustMatchers {
   }
 
   "When multiple validations fail, multiple failures are returned" in {
-    val validator = new RuleBasedValidator().withRules[Foo](CommonRules.noDuplicates(existingFoos))
+    val validator = new RuleBasedValidator()
 
     validator.validate(existingFoos, Post) mustEqual Left(Failure(409, Seq(s"${CommonRules.noId} 1", s"${CommonRules.noId} 2", s"${CommonRules.noId} 3")))
-  }
-
-  "When multiple validations fail, the highest HTTP error code wins" in {
-    pending
   }
 }
