@@ -39,6 +39,8 @@ object CommonRules {
       }
   }
 
+  val noId = "You can't POST an item with an ID; the system will allocate an ID upon resource creation. Offending ID:"
+
   def newResourcesCannotHaveAnId: ValidationRule = new ValidationRule {
     override def validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod) = {
       val idsAlreadyAllocated: Seq[T] = resources.filter(_.id.isDefined).filterNot{
@@ -47,7 +49,7 @@ object CommonRules {
       }
 
       if (httpMethod == Post) idsAlreadyAllocated map {t =>
-        Failure(409, s"You can't POST an item with an ID; the system will allocate an ID upon resource creation. Offending ID: ${t.id.getOrElse("None")}")
+        Failure(409, s"$noId ${t.id.getOrElse("None")}")
       }
       else Nil
     }

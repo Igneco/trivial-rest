@@ -6,6 +6,7 @@ import org.jboss.netty.handler.codec.http.HttpHeaders.Names
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names._
 import org.scalatest.{MustMatchers, OneInstancePerTest, WordSpec}
 import trivial.rest.TestDirectories._
+import trivial.rest.validation.CommonRules
 
 class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper with OneInstancePerTest {
 
@@ -51,7 +52,7 @@ class EndToEndSpec extends WordSpec with MustMatchers with SpecHelper with OneIn
   }
 
   "Resources can fail validation checks on POST and PUT" in {
-    post("/my/api/foo", body = fooPenguinsWithId)     --> (409 -> s"You can't POST an item with an ID; the system will allocate an ID upon resource creation. Offending ID: 0000101")
+    post("/my/api/foo", body = fooPenguinsWithId)     --> (409 -> s"${CommonRules.noId} 0000101")
 
     put("/my/api/foo/0000101", body = fooMonkeysNoId) --> (409 -> "Resource to update must have an ID")
   }
