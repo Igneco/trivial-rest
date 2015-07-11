@@ -169,10 +169,7 @@ class Rest(uriRoot: String,
     get(s"${pathTo(resourceName)}.json") { request => route.get(pathTo(resourceName)) }
 
     get(pathTo(resourceName)) { request =>
-      if (request.params.nonEmpty)
-        respond(persister.loadOnly[T](resourceName, request.params))
-      else
-        respond(persister.read[T](resourceName))
+      respond(persister.read[T](resourceName, request.params))
     }
   }
 

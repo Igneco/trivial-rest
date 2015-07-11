@@ -60,7 +60,7 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
     serialiser.deserialiseToType[T](JArray(matchingResources).asInstanceOf[serialiser.JsonRepresentation])
   }
 
-  override def loadAll[T : Manifest](resourceName: String): Either[Failure, Seq[T]] =
+  private def loadAll[T : Manifest](resourceName: String): Either[Failure, Seq[T]] =
     memo(resourceName) { actuallyLoadAll[T] }(resourceName)
 
   private def actuallyLoadAll[T : Manifest](resourceName: String): Either[Failure, Seq[T]] =

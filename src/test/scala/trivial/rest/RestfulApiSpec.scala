@@ -103,7 +103,7 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
   }
 
   "We can filter the complete list of resources by adding query parameters to a GET" in new RestApiFixture() {
-    persister_expects_loadOnly("foo", Map("bar" -> "someValue"), Right(seqFoos))
+    persister_expects_read("foo", Map("bar" -> "someValue"), Right(seqFoos))
     serialiser_expects_serialise[Foo]
 
     app.get("/foo?bar=someValue") --> "<A serialised Seq[Foo]>"
