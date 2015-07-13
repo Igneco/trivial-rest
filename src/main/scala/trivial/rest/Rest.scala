@@ -160,7 +160,7 @@ class Rest(uriRoot: String,
       def toEither[T : ClassTag](option: Option[T]): Either[Failure, T] =
         option.fold[Either[Failure, T]](Left(Failure(404, s"Not found: $resourceName with ID ${request.routeParams("id")}")))(t => Right(t))
 
-      respondSingle(persister.load[T](resourceName, request.routeParams("id")).right.flatMap(seqTs => toEither(seqTs.headOption)))
+      respondSingle(persister.read[T](resourceName, request.routeParams("id")).right.flatMap(seqTs => toEither(seqTs.headOption)))
     }
   }
 

@@ -38,9 +38,6 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
     if (params.nonEmpty) loadOnly[T](resourceName, params)
     else loadAll[T](resourceName)
 
-  override def load[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Seq[T]] =
-    loadOnly[T](resourceName, Map("id" -> id))
-
   private def loadOnly[T : Manifest](resourceName: String, params: Map[String, String]): Either[Failure, Seq[T]] = {
     // TODO - CAS - 26/06/15 - Push this type of filtering into Serialiser, with a default null implementation. The persister does not have to use it (but it can if it likes).
     // TODO - CAS - 26/06/15 - Handle params which do not exist as fields in the Resource.

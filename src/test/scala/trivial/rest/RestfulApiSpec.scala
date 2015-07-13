@@ -221,8 +221,8 @@ class RestfulApiSpec extends WordSpec with MustMatchers with MockFactory {
       (persisterMock.read[T](_: String, _ : Map[String,String])(_: Manifest[T])).expects(resourceName, params, *).returning(returns)
     }
 
-    def persister_expects_load[T <: Resource[T]](resourceName: String, key: String, returns: Either[Failure, Seq[T]]) = {
-      (persisterMock.load[T](_: String, _: String)(_: Manifest[T])).expects(resourceName, key, *).returning(returns)
+    def persister_expects_load[T <: Resource[T]](resourceName: String, id: String, returns: Either[Failure, Seq[T]]) = {
+      (persisterMock.read[T](_: String, _: String)(_: Manifest[T])).expects(resourceName, id, *).returning(returns)
     }
 
     val sequence = new mutable.Queue[String]()
