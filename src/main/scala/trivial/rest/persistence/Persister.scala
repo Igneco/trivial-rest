@@ -11,7 +11,6 @@ trait Persister {
   def read[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Seq[T]]
 
   // TODO - CAS - 03/07/15 - Combinify loadAll and loadOnly
-  def loadOnly[T : Manifest](resourceName: String, params: Map[String, String]): Either[Failure, Seq[T]]
   def load[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Seq[T]]
 
   def update[T <: Resource[T] : Manifest](resourceName: String, content: Seq[T]): Either[Failure, Int]
