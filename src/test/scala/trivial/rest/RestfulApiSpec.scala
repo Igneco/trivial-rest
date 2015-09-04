@@ -14,7 +14,7 @@ import org.scalamock.scalatest.MockFactory
 import trivial.rest.controller.finatra.{NonHidingExceptionsMapper, UsableController}
 import trivial.rest.persistence.Persister
 import trivial.rest.serialisation.Serialiser
-import trivial.rest.validation.Validator
+import trivial.rest.validation.RestValidator
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -237,7 +237,7 @@ class RestfulApiSpec extends FeatureTest with MockFactory {
     val persisterMock: Persister = mock[Persister]
     val formats: Formats = mock[Formats]
     val serialiserMock: Serialiser = mock[Serialiser]
-    val validatorMock: Validator = mock[Validator]
+    val validatorMock: RestValidator = mock[RestValidator]
 
     serialiser_expects_registerResource[Spaceship]
     serialiser_expects_registerResource[Vector]

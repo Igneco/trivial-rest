@@ -6,7 +6,7 @@ import org.json4s._
 import trivial.rest.controller.finatra.UsableController
 import trivial.rest.persistence.Persister
 import trivial.rest.serialisation.Serialiser
-import trivial.rest.validation.Validator
+import trivial.rest.validation.RestValidator
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -27,7 +27,7 @@ class Rest(uriRoot: String,
            val controller: UsableController,
            val serialiser: Serialiser,
            persister: Persister,
-           validator: Validator) {
+           validator: RestValidator) {
 
   private val resources = mutable.ListBuffer[String]()
   private val forwardMigrations = mutable.Map.empty[Class[_], _ => _]

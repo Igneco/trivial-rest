@@ -2,16 +2,16 @@ package trivial.rest.validation
 
 import trivial.rest._
 
-trait Validator {
+trait RestValidator {
   def validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod): Either[Failure, Seq[T]]
 }
 
-trait ValidationRule {
+trait RestValidationRule {
   def validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod): Seq[Failure]
 }
 
-class RuleBasedValidator(rules: Seq[ValidationRule] = Seq(CommonRules.newResourcesCannotHaveAnId, CommonRules.resourcesToUpdateMustHaveAnId)) extends Validator {
-  def withRules[T <: Resource[T]](extraRules: ValidationRule*) = new RuleBasedValidator(rules ++ extraRules)
+class RuleBasedRestValidator(rules: Seq[RestValidationRule] = Seq(CommonRules.newResourcesCannotHaveAnId, CommonRules.resourcesToUpdateMustHaveAnId)) extends RestValidator {
+  def withRules[T <: Resource[T]](extraRules: RestValidationRule*) = new RuleBasedRestValidator(rules ++ extraRules)
 
   override def validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod): Either[Failure, Seq[T]] =
     rules flatMap (rule => rule.validate(resources, httpMethod)) match {
@@ -25,14 +25,14 @@ class RuleBasedValidator(rules: Seq[ValidationRule] = Seq(CommonRules.newResourc
 }
 
 object CommonRules {
-  def noDuplicates[T <: Resource[T]](allT: => Seq[T]): ValidationRule = new ValidationRule {
+  def noDuplicates[T <: Resource[T]](allT: => Seq[T]): RestValidationRule = new RestValidationRule {
     val withoutIds = allT.map(_.withId(None))
 
     override def validate[T](resources: Seq[T], httpMethod: HttpMethod): Seq[Failure] =
       (resources filter withoutIds.contains) map (t => Failure(409, s"A matching item already exists: $t"))
   }
 
-  def resourcesToUpdateMustHaveAnId: ValidationRule = new ValidationRule {
+  def resourcesToUpdateMustHaveAnId: RestValidationRule = new RestValidationRule {
     override def validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod) =
       resources collect {
         case r if r.id.isEmpty && httpMethod == Put => Failure(409, s"Resource to update must have an ID")
@@ -41,7 +41,7 @@ object CommonRules {
 
   val noId = "You can't POST an item with an ID; the system will allocate an ID upon resource creation. Offending ID:"
 
-  def newResourcesCannotHaveAnId: ValidationRule = new ValidationRule {
+  def newResourcesCannotHaveAnId: RestValidationRule = new RestValidationRule {
     override def validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod) = {
       val idsAlreadyAllocated: Seq[T] = resources.filter(_.id.isDefined).filterNot{
         case h: HardCoded => true
