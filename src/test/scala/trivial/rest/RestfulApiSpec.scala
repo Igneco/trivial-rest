@@ -25,16 +25,20 @@ class RestfulApiSpec extends FeatureTest with MockFactory {
 
   val server = fixture.actualServer
 
+  // TODO - CAS - 11/09/15 - Test the CONTENT_TYPE header value
   // response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
 
   "The root path provides a not-quite-hypertext list of supported resource types" in {
-    server.assertHealthy()
+    serialiser_expects_serialise[String](
+      Seq("currency", "exchangerate", "foo", "metricperson", "planet", "spaceship", "vector"),
+      """["currency","exchangerate","foo","metricperson","planet","spaceship","vector"]"""
+    )
 
-//    server.httpGet(
-//      path = "/",
-//      andExpect = Ok,
-//      withBody = """["currency","exchangerate","foo","metricperson","planet","spaceship","vector"]"""
-//    )
+    server.httpGet(
+      path = "/",
+      andExpect = Ok,
+      withBody = """["currency","exchangerate","foo","metricperson","planet","spaceship","vector"]"""
+    )
   }
 
   val seqFoos = Seq(
@@ -160,14 +164,14 @@ class RestfulApiSpec extends FeatureTest with MockFactory {
     )
   }
 
-  "FAILING - We can PUT updates to Resources" in {
+  "We can PUT updates to Resources" in {
     val foo = Foo(Some("1"), "Baz")
     serialiser_expects_deserialise[Foo]("<A serialised Foo>", Seq(foo))
     validator_expects_validate[Foo](Seq(foo), Put, Right(Seq(foo)))
     persister_expects_update("foo", Seq(foo))
 
     server.httpPut(
-      path = "\"/foo/1",
+      path = "/foo/1",
       putBody = "<A serialised Foo>",
       andExpect = Ok,
       withBody = """{"updatedCount":"1"}"""
@@ -268,6 +272,10 @@ class RestfulApiSpec extends FeatureTest with MockFactory {
       (serialiserMock.formatsExcept[T] (_: ClassTag[T])).expects(*).returning(formats).anyNumberOfTimes()
     }
 
+    def serialiser_expects_serialise[T <: AnyRef : ClassTag](input: Seq[T], output: String) = {
+      (serialiserMock.serialise[T](_: Seq[T])(_: ClassTag[T])).expects(input, *).returning(output)
+    }
+
     def serialiser_expects_serialise[T <: AnyRef : ClassTag] = {
       (serialiserMock.serialise[T](_: Seq[T])(_: ClassTag[T])).expects(*, *).returning(s"<A serialised Seq[${Classy.name[T]}]>")
     }
@@ -279,7 +287,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory {
     def serialiser_expects_deserialise[T <: Resource[T] : ClassTag](body: String, returns: Seq[T]) = {
       (serialiserMock.deserialise[T](_: String)(_: Manifest[T])).expects(body, *).returning(Right(returns))
     }
-
 
     def persister_expects_read[T <: Resource[T] : Manifest](resourceName: String, params: Map[String,String] = Map.empty, returns: Either[Failure, Seq[T]]) = {
       (persisterMock.read[T](_: String, _ : Map[String,String])(_: Manifest[T])).expects(resourceName, params, *).returning(returns)

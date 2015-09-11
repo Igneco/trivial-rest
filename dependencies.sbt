@@ -21,7 +21,9 @@ val productionDependencies = Seq(
   "com.twitter.inject" %% "inject-core" % "2.0.0.RC1" % "test" withSources(),
   "com.twitter.inject" %% "inject-core" % "2.0.0.RC1" % "test" classifier "tests" withSources(),
   "com.twitter.inject" %% "inject-modules" % "2.0.0.RC1" % "test" withSources(),
-  "com.twitter.inject" %% "inject-modules" % "2.0.0.RC1" % "test" classifier "tests" withSources()
+  "com.twitter.inject" %% "inject-modules" % "2.0.0.RC1" % "test" classifier "tests" withSources(),
+  "com.typesafe.scala-logging" %% "scala-logging-slf4j" % "2.1.2",
+  "org.slf4j" % "slf4j-simple" % "1.7.12"
   //    exclude("org.scalatest", "scalatest_2.10")
   //    exclude("com.google.code.findbugs", "jsr305")
 )
