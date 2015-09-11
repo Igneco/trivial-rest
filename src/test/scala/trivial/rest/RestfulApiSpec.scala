@@ -8,6 +8,7 @@ import com.twitter.finatra.http.routing.HttpRouter
 import com.twitter.finatra.http.test.EmbeddedHttpServer
 import com.twitter.finatra.http.{Controller, HttpServer}
 import com.twitter.inject.server.FeatureTest
+import org.jboss.netty.handler.codec.http.HttpHeaders.Names._
 import org.json4s.Formats
 import org.scalamock.scalatest.MockFactory
 import trivial.rest.controller.finatra.{NonHidingExceptionsMapper, UsableController}
@@ -25,9 +26,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory {
 
   val server = fixture.actualServer
 
-  // TODO - CAS - 11/09/15 - Test the CONTENT_TYPE header value
-  // response.getHeader(Names.CONTENT_TYPE) must equal(s"${MediaType.Json}; charset=UTF-8")
-
   "The root path provides a not-quite-hypertext list of supported resource types" in {
     serialiser_expects_serialise[String](
       Seq("currency", "exchangerate", "foo", "metricperson", "planet", "spaceship", "vector"),
@@ -37,6 +35,7 @@ class RestfulApiSpec extends FeatureTest with MockFactory {
     server.httpGet(
       path = "/",
       andExpect = Ok,
+      headers = Map(CONTENT_TYPE -> "application/json; charset=UTF-8"),
       withBody = """["currency","exchangerate","foo","metricperson","planet","spaceship","vector"]"""
     )
   }
