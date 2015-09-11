@@ -5,16 +5,30 @@ resolvers += "twitter-repo" at "http://maven.twttr.com"
 updateOptions := updateOptions.value.withCachedResolution(cachedResoluton = true)
 
 val productionDependencies = Seq(
-  "com.twitter" %% "finatra" % "1.6.0"
-    exclude("org.scalatest", "scalatest_2.10")
-    exclude("com.google.code.findbugs", "jsr305"),
   "org.json4s" %% "json4s-native" % "3.2.11"
-    exclude("org.scala-lang", "scala-compiler"),
-  "org.json4s" %% "json4s-ext" % "3.2.11"
+    exclude("org.scala-lang", "scala-compiler")
+  ,
+  "org.json4s" %% "json4s-ext" % "3.2.11",
+
+  // TODO - CAS - 08/09/15 - Holy shit: this is an insane dependency tree. Thanks Finatra.
+  "com.twitter.finatra" %% "finatra-http" % "2.0.0.RC1" withSources(),
+  "com.twitter.finatra" %% "finatra-http" % "2.0.0.RC1" % "test" withSources(),
+  "com.twitter.finatra" %% "finatra-http" % "2.0.0.RC1" % "test" classifier "tests" withSources(),
+  "com.twitter.inject" %% "inject-server" % "2.0.0.RC1" % "test" withSources(),
+  "com.twitter.inject" %% "inject-server" % "2.0.0.RC1" % "test" classifier "tests" withSources(),
+  "com.twitter.inject" %% "inject-app" % "2.0.0.RC1" % "test" withSources(),
+  "com.twitter.inject" %% "inject-app" % "2.0.0.RC1" % "test" classifier "tests" withSources(),
+  "com.twitter.inject" %% "inject-core" % "2.0.0.RC1" % "test" withSources(),
+  "com.twitter.inject" %% "inject-core" % "2.0.0.RC1" % "test" classifier "tests" withSources(),
+  "com.twitter.inject" %% "inject-modules" % "2.0.0.RC1" % "test" withSources(),
+  "com.twitter.inject" %% "inject-modules" % "2.0.0.RC1" % "test" classifier "tests" withSources()
+  //    exclude("org.scalatest", "scalatest_2.10")
+  //    exclude("com.google.code.findbugs", "jsr305")
 )
 
 val testDependencies = Seq(
   "org.scalatest" %% "scalatest" % "2.2.4" % "test",
+  "junit" % "junit" % "4.11" % "test",
   "org.mockito" % "mockito-all" % "2.0.2-beta" % "test",
   "org.scalamock" %% "scalamock-scalatest-support" % "3.2.1" % "test"
 )
@@ -28,7 +42,7 @@ libraryDependencies += "org.scala-lang" % "scala-compiler" % scalaVersion.value
 // this mechanism supports cross-version publishing
 libraryDependencies := {
   CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, scalaMajor)) if scalaMajor >= 11 => libraryDependencies.value :+ "org.scala-lang.modules" %% "scala-xml" % "1.0.3"
+    case Some((2, scalaMajor)) if scalaMajor >= 11 => libraryDependencies.value :+ "org.scala-lang.modules" %% "scala-xml" % "1.0.5"
     case _ => libraryDependencies.value
   }
 }

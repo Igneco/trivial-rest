@@ -111,9 +111,9 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
   // TODO - CAS - 14/05/15 - Extract FS methods to a separate FileSystem dependency?
 
   def assuredFile(docRoot: Directory, targetResourceName: String, defaultContents: String = ""): File = {
-    if (docRoot.notExists) docRoot.createDirectory()
+    if (!docRoot.exists) docRoot.createDirectory()
     val targetFile = fileFor(targetResourceName)
-    if (targetFile.notExists) {
+    if (!targetFile.exists) {
       targetFile.createFile()
       targetFile.writeAll(defaultContents)
     }
