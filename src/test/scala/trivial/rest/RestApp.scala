@@ -1,9 +1,9 @@
 package trivial.rest
 
+import com.twitter.finatra.http.HttpServer
 import com.twitter.finatra.http.filters.CommonFilters
-import com.twitter.finatra.http.{Controller, HttpServer}
 import com.twitter.finatra.http.routing.HttpRouter
-import trivial.rest.controller.finatra.UsableController
+import trivial.rest.controller.finatra.{NonHidingExceptionsMapper, UsableController}
 import trivial.rest.persistence.{JsonOnFileSystem, Persister}
 import trivial.rest.serialisation.{Json4sSerialiser, Serialiser}
 import trivial.rest.validation.{RuleBasedValidator, Validator}
@@ -31,7 +31,11 @@ case class DemoApp(docRoot: Directory, uriRoot: String) extends HttpServer {
   val validator = new RuleBasedValidator()
   val rest = new RestExample(uriRoot, controller, serialiser, persister, validator)
 
-  override def configureHttp(router: HttpRouter) = router.filter[CommonFilters].add(controller)
+  override def configureHttp(router: HttpRouter) =
+    router
+      .exceptionMapper[NonHidingExceptionsMapper]
+      .filter[CommonFilters]
+      .add(controller)
 }
 
 object RestApp extends DemoApp(Directory("src/test/resources"), "/")

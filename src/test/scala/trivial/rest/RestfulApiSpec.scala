@@ -264,10 +264,7 @@ class RestfulApiSpec extends FeatureTest with MockFactory {
         .add(controller)
     }
 
-    val actualServer = new EmbeddedHttpServer(
-      twitterServer = MockableApp(controller)
-      ,stage = Stage.PRODUCTION
-    )
+    val actualServer = new EmbeddedHttpServer(twitterServer = MockableApp(controller), stage = Stage.PRODUCTION)
 
     def serialiser_expects_registerResource[T <: Resource[T] : ClassTag] = {
       (serialiserMock.registerResource[T] (_: Formats => Either[Failure, Seq[T]])(_: ClassTag[T])).expects(*,*)

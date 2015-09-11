@@ -25,7 +25,7 @@ import scala.reflect.ClassTag
  */
 class Rest(uriRoot: String,
            val controller: UsableController,
-           serialiser: Serialiser,
+           val serialiser: Serialiser,
            persister: Persister,
            validator: Validator) {
 

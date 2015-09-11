@@ -4,12 +4,10 @@ import com.twitter.finagle.httpx.Status._
 import com.twitter.finatra.http.test.EmbeddedHttpServer
 import com.twitter.inject.server.FeatureTest
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names._
-import org.scalatest.{MustMatchers, OneInstancePerTest, WordSpec}
 import trivial.rest.TestDirectories._
 import trivial.rest.validation.CommonRules
 
-class EndToEndSpec extends FeatureTest with OneInstancePerTest {
-//class EndToEndSpec extends WordSpec with MustMatchers with FeatureTest with OneInstancePerTest {
+class EndToEndSpec extends FeatureTest {
 
   val existingCurrencies = """{"id":"1","rate":33.3,"currency":"2"},{"id":"2","rate":44.4,"currency":"3"}"""
 
