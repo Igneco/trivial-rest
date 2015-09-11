@@ -10,7 +10,6 @@ import com.twitter.finatra.http.{Controller, HttpServer}
 import com.twitter.inject.server.FeatureTest
 import org.json4s.Formats
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.OneInstancePerTest
 import trivial.rest.controller.finatra.{NonHidingExceptionsMapper, UsableController}
 import trivial.rest.persistence.Persister
 import trivial.rest.serialisation.Serialiser
@@ -19,7 +18,7 @@ import trivial.rest.validation.Validator
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-class RestfulApiSpec extends FeatureTest with MockFactory with OneInstancePerTest {
+class RestfulApiSpec extends FeatureTest with MockFactory {
 
   private val fixture = new RestApiFixture()
   import fixture._
@@ -36,7 +35,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory with OneInstancePerTes
 //      andExpect = Ok,
 //      withBody = """["currency","exchangerate","foo","metricperson","planet","spaceship","vector"]"""
 //    )
-    server.close()
   }
 
   val seqFoos = Seq(
@@ -54,7 +52,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory with OneInstancePerTes
       andExpect = Ok,
       withBody = "<A serialised Seq[Foo]>"
     )
-//    server.close()
   }
 
   // TODO - CAS - 08/07/15 - Change the return type to: {added: [ {item1 URI}, {item2 URI} ... ]}
@@ -71,7 +68,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory with OneInstancePerTes
       andExpect = Ok,
       withBody = """{"addedCount":"1"}"""
     )
-//    server.close()
   }
 
 //  "POSTing a new item request an ID for it from the Persister" in {
@@ -81,7 +77,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory with OneInstancePerTes
 //      path = "/planet",
 //      postBody = """[{"name": "Earth", "classification": "tolerable"}]"""
 //    )
-//    server.close()
 //  }
 
   "We send back a 404 for Resource types we don't support" in {
@@ -91,7 +86,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory with OneInstancePerTes
       andExpect = NotFound,
       withBody = "Resource type not supported: petName"
     )
-//    server.close()
   }
 
   "POSTing items returns an updated count" in {
@@ -116,8 +110,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory with OneInstancePerTes
       andExpect = Ok,
       withBody = """{"addedCount":"2"}"""
     )
-
-//    server.close()
   }
 
   "Return a 405 for HTTP methods that are not supported" in {
@@ -128,8 +120,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory with OneInstancePerTes
       andExpect = MethodNotAllowed,
       withBody = "Method not allowed: PUT. Methods supported by /spaceship are: GET all, POST"
     )
-//    server.close()
-
 //    server.httpPut(
 //      path = "/spaceship/1",
 //      putBody = "",
@@ -147,7 +137,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory with OneInstancePerTes
       andExpect = Ok,
       withBody = "<A serialised Foo>"
     )
-    server.close()
   }
 
   "We can filter the complete list of resources by adding query parameters to a GET" in {
@@ -159,7 +148,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory with OneInstancePerTes
       andExpect = Ok,
       withBody = "<A serialised Seq[Foo]>"
     )
-    server.close()
   }
 
   "We can delete a Resource by ID" in {
@@ -170,7 +158,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory with OneInstancePerTes
       andExpect = Ok,
       withBody = """{"deletedCount":"1"}"""
     )
-    server.close()
   }
 
   "FAILING - We can PUT updates to Resources" in {
@@ -185,7 +172,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory with OneInstancePerTes
       andExpect = Ok,
       withBody = """{"updatedCount":"1"}"""
     )
-    server.close()
   }
 
   "Validation failures are returned in the HTTP response with the relevant status code" in {
@@ -200,7 +186,6 @@ class RestfulApiSpec extends FeatureTest with MockFactory with OneInstancePerTes
       andExpect = Status(666),
       withBody = "Some reason for the failure"
     )
-    server.close()
   }
 
   "We can define special query endpoints to allow for custom queries by clients" in {
