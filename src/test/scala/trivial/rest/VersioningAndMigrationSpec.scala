@@ -9,6 +9,9 @@ import org.json4s.native.Serialization
 import org.scalatest.{MustMatchers, OneInstancePerTest}
 import org.scalatest.MustMatchers._
 import trivial.rest.TestDirectories._
+import trivial.rest.persistence.JsonOnFileSystem
+import trivial.rest.serialisation.Json4sSerialiser
+import trivial.rest.validation.RuleBasedRestValidator
 
 /**
     USE CASES
@@ -24,13 +27,18 @@ import trivial.rest.TestDirectories._
  */
 class VersioningAndMigrationSpec extends FeatureTest with OneInstancePerTest {
 
-  private val demoApp: DemoApp = new DemoApp(provisionedTestDir, "/")
+  val docRoot = provisionedTestDir
+  val serialiser = new Json4sSerialiser
+  val persister = new JsonOnFileSystem(docRoot, serialiser)
+  val validator = new RuleBasedRestValidator()
+  private val demoApp = new TestFinatraServer(docRoot, "/", serialiser, persister, validator)
+
   val server = new EmbeddedHttpServer(twitterServer = demoApp, stage = Stage.PRODUCTION)
 
   "(1) Add a field with a sensible default - post a Currency without the required 'symbol' field" in {
     val newCurrency = """[{"isoName":"NZD"}]"""
 
-    demoApp.rest.serialiser.withDefaultFields[Currency](Currency(None, "", ""))
+    serialiser.withDefaultFields[Currency](Currency(None, "", ""))
 
     server.httpPost(
       path = "/currency",
@@ -183,7 +191,7 @@ class VersioningAndMigrationSpec extends FeatureTest with OneInstancePerTest {
 
   def givenExistingData[T <: AnyRef](resourceName: String, resources: T) = {
     val json = Serialization.write(resources)(Serialization.formats(NoTypeHints))
-    demoApp.persister.assuredFile(demoApp.docRoot, resourceName).delete()
-    demoApp.persister.assuredFile(demoApp.docRoot, resourceName).writeAll(json)
+    persister.assuredFile(docRoot, resourceName).delete()
+    persister.assuredFile(docRoot, resourceName).writeAll(json)
   }
 }

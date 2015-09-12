@@ -5,13 +5,25 @@ import com.twitter.finatra.http.test.EmbeddedHttpServer
 import com.twitter.inject.server.FeatureTest
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names._
 import trivial.rest.TestDirectories._
-import trivial.rest.validation.CommonRules
+import trivial.rest.persistence.JsonOnFileSystem
+import trivial.rest.serialisation.Json4sSerialiser
+import trivial.rest.validation.{RuleBasedRestValidator, CommonRules}
+
+import scala.reflect.io.Directory
 
 class EndToEndSpec extends FeatureTest {
 
   val existingCurrencies = """{"id":"1","rate":33.3,"currency":"2"},{"id":"2","rate":44.4,"currency":"3"}"""
 
-  override val server = new EmbeddedHttpServer(new DemoApp(provisionedTestDir, "/my/api"))
+  val docRoot = provisionedTestDir
+  val serialiser = new Json4sSerialiser
+  val persister = new JsonOnFileSystem(docRoot, serialiser) {
+    override def nextSequenceId = formatSequenceId(10)
+  }
+  val validator = new RuleBasedRestValidator()
+  private val demoApp = new TestFinatraServer(docRoot, "/my/api", serialiser, persister, validator)
+
+  override val server = new EmbeddedHttpServer(demoApp)
 
   "Charset for JSON data is UTF-8" in {
     server.httpGet(
@@ -64,13 +76,19 @@ class EndToEndSpec extends FeatureTest {
     )
 
     server.httpGet(
-      path = "/my/api/foo/0000101",
+      path = "/my/api/foo",
       andExpect = Ok,
-      withBody = """{"id":"0000101","bar":"monkeys"}"""
+      withBody = """[{"id":"0000010","bar":"monkeys"}]"""
+    )
+
+    server.httpGet(
+      path = "/my/api/foo/0000010",
+      andExpect = Ok,
+      withBody = """{"id":"0000010","bar":"monkeys"}"""
     )
 
     server.httpPut(
-      path = "/my/api/foo/0000101",
+      path = "/my/api/foo/1",
       putBody = fooPenguinsWithId,
       andExpect = Ok,
       withBody = """{"updatedCount":"1"}"""

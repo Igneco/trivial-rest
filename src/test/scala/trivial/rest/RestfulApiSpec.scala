@@ -11,10 +11,11 @@ import com.twitter.inject.server.FeatureTest
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names._
 import org.json4s.Formats
 import org.scalamock.scalatest.MockFactory
+import trivial.rest.TestDirectories._
 import trivial.rest.controller.finatra.{NonHidingExceptionsMapper, UsableController}
-import trivial.rest.persistence.Persister
-import trivial.rest.serialisation.Serialiser
-import trivial.rest.validation.RestValidator
+import trivial.rest.persistence.{JsonOnFileSystem, Persister}
+import trivial.rest.serialisation.{Json4sSerialiser, Serialiser}
+import trivial.rest.validation.{RuleBasedRestValidator, RestValidator}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -234,10 +235,10 @@ class RestfulApiSpec extends FeatureTest with MockFactory {
   // Caching spec
 
   class RestApiFixture() {
-    val persisterMock: Persister = mock[Persister]
+    val persister: Persister = mock[Persister]
     val formats: Formats = mock[Formats]
-    val serialiserMock: Serialiser = mock[Serialiser]
-    val validatorMock: RestValidator = mock[RestValidator]
+    val serialiser: Serialiser = mock[Serialiser]
+    val validator: RestValidator = mock[RestValidator]
 
     serialiser_expects_registerResource[Spaceship]
     serialiser_expects_registerResource[Vector]
@@ -254,70 +255,62 @@ class RestfulApiSpec extends FeatureTest with MockFactory {
     serialiser_expects_formatsExcept[Foo]
     serialiser_expects_formatsExcept[Currency]
 
-    val controller = new UsableController {}
-    val rest = new RestExample("/", controller, serialiserMock, persisterMock, validatorMock)
-
-    case class MockableApp(controller: Controller) extends HttpServer {
-      override def configureHttp(router: HttpRouter) = router
-        .exceptionMapper[NonHidingExceptionsMapper]
-        .filter[CommonFilters]
-        .add(controller)
-    }
-
-    val actualServer = new EmbeddedHttpServer(twitterServer = MockableApp(controller), stage = Stage.PRODUCTION)
+    val docRoot = provisionedTestDir
+    val demoApp = new TestFinatraServer(docRoot, "/", serialiser, persister, validator)
+    val actualServer = new EmbeddedHttpServer(demoApp)
 
     def serialiser_expects_registerResource[T <: Resource[T] : ClassTag] = {
-      (serialiserMock.registerResource[T] (_: Formats => Either[Failure, Seq[T]])(_: ClassTag[T])).expects(*,*)
+      (serialiser.registerResource[T] (_: Formats => Either[Failure, Seq[T]])(_: ClassTag[T])).expects(*,*)
     }
 
     def serialiser_expects_formatsExcept[T <: Resource[T] : ClassTag] = {
-      (serialiserMock.formatsExcept[T] (_: ClassTag[T])).expects(*).returning(formats).anyNumberOfTimes()
+      (serialiser.formatsExcept[T] (_: ClassTag[T])).expects(*).returning(formats).anyNumberOfTimes()
     }
 
     def serialiser_expects_serialise[T <: AnyRef : ClassTag](input: Seq[T], output: String) = {
-      (serialiserMock.serialise[T](_: Seq[T])(_: ClassTag[T])).expects(input, *).returning(output)
+      (serialiser.serialise[T](_: Seq[T])(_: ClassTag[T])).expects(input, *).returning(output)
     }
 
     def serialiser_expects_serialise[T <: AnyRef : ClassTag] = {
-      (serialiserMock.serialise[T](_: Seq[T])(_: ClassTag[T])).expects(*, *).returning(s"<A serialised Seq[${Classy.name[T]}]>")
+      (serialiser.serialise[T](_: Seq[T])(_: ClassTag[T])).expects(*, *).returning(s"<A serialised Seq[${Classy.name[T]}]>")
     }
 
     def serialiser_expects_serialiseSingle[T <: AnyRef : ClassTag] = {
-      (serialiserMock.serialise[T](_: T)(_: ClassTag[T])).expects(*, *).returning(s"<A serialised ${Classy.name[T]}>")
+      (serialiser.serialise[T](_: T)(_: ClassTag[T])).expects(*, *).returning(s"<A serialised ${Classy.name[T]}>")
     }
 
     def serialiser_expects_deserialise[T <: Resource[T] : ClassTag](body: String, returns: Seq[T]) = {
-      (serialiserMock.deserialise[T](_: String)(_: Manifest[T])).expects(body, *).returning(Right(returns))
+      (serialiser.deserialise[T](_: String)(_: Manifest[T])).expects(body, *).returning(Right(returns))
     }
 
     def persister_expects_read[T <: Resource[T] : Manifest](resourceName: String, params: Map[String,String] = Map.empty, returns: Either[Failure, Seq[T]]) = {
-      (persisterMock.read[T](_: String, _ : Map[String,String])(_: Manifest[T])).expects(resourceName, params, *).returning(returns)
+      (persister.read[T](_: String, _ : Map[String,String])(_: Manifest[T])).expects(resourceName, params, *).returning(returns)
     }
 
     def persister_expects_load[T <: Resource[T]](resourceName: String, id: String, returns: Either[Failure, Seq[T]]) = {
-      (persisterMock.read[T](_: String, _: String)(_: Manifest[T])).expects(resourceName, id, *).returning(returns)
+      (persister.read[T](_: String, _: String)(_: Manifest[T])).expects(resourceName, id, *).returning(returns)
     }
 
     val sequence = new mutable.Queue[String]()
     def persister_expects_nextSequenceNumber(values: String*) = {
       sequence.enqueue(values:_*)
-      (persisterMock.nextSequenceId _).expects().onCall(() => sequence.dequeue()).anyNumberOfTimes()
+      (persister.nextSequenceId _).expects().onCall(() => sequence.dequeue()).anyNumberOfTimes()
     }
 
     def persister_expects_save[T <: Resource[T]](resourceName: String, expectedSeq: Seq[T]) = {
-      (persisterMock.create[T](_: String, _: Seq[T])(_: Manifest[T])).expects(resourceName, expectedSeq, *).returning(Right(expectedSeq.size))
+      (persister.create[T](_: String, _: Seq[T])(_: Manifest[T])).expects(resourceName, expectedSeq, *).returning(Right(expectedSeq.size))
     }
 
     def persister_expects_delete[T <: Resource[T]](resourceName: String, id: String) = {
-      (persisterMock.delete[T](_: String, _: String)(_: Manifest[T])).expects(resourceName, id, *).returning(Right(1))
+      (persister.delete[T](_: String, _: String)(_: Manifest[T])).expects(resourceName, id, *).returning(Right(1))
     }
 
     def persister_expects_update[T <: Resource[T]](resourceName: String, expectedSeq: Seq[T]) = {
-      (persisterMock.update[T](_: String, _: Seq[T])(_: Manifest[T])).expects(resourceName, expectedSeq, *).returning(Right(expectedSeq.size))
+      (persister.update[T](_: String, _: Seq[T])(_: Manifest[T])).expects(resourceName, expectedSeq, *).returning(Right(expectedSeq.size))
     }
 
     def validator_expects_validate[T <: Resource[T]](resources: Seq[T], httpMethod: HttpMethod, returns: Either[Failure, Seq[T]]) = {
-      (validatorMock.validate[T](_: Seq[T], _: HttpMethod)).expects(resources, httpMethod).returning(returns)
+      (validator.validate[T](_: Seq[T], _: HttpMethod)).expects(resources, httpMethod).returning(returns)
     }
   }
 }
