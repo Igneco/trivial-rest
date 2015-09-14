@@ -120,32 +120,18 @@ class JsonOnFileSystemSpec extends WordSpec with MustMatchers with MockFactory {
     jofs.nextSequenceId mustBe "0000002"
   }
 
+  // TODO - CAS - 14/09/15 - When extracting the persistence contract, this is not part of it
   "We can disallow the persistence of duplicate resources of a specific type" in {
+    pending
     val docRoot = nextTestDir
-    val customValidator = new PersistenceValidator {
-      override def validate[T <: Resource[T] : Manifest](resourceName: String, resources: Seq[T], persister: Persister) = {
-        resources match {
-          case h +: t => h match {
-            case f: Foo => assertNoDupes(resources, persister.read[T](resourceName))
-          }
-          case Nil => Right(resources)
-        }
-      }
-
-      def assertNoDupes[T <: Resource[T]](resources: Seq[T], preExisting: Either[Failure, Seq[T]]): Either[Failure, Seq[T]] =
-        preExisting.right.flatMap { pres =>
-          resources.find(pres.contains).fold[Either[Failure, Seq[T]]](Right(resources))(foo => Left(Failure(409, s"Duplicate resource cannot be created: $foo")))
-        }
-    }
-
-    val jofs = new JsonOnFileSystem(docRoot, serialiser, customValidator)
+    val jofs = new JsonOnFileSystem(docRoot, serialiser)
 
     jofs.create("foo", Seq(Foo(Some("1"), "bar")))
     jofs.create("foo", Seq(Foo(Some("1"), "bar"))) mustEqual Left(Failure(409, "Duplicate resource cannot be created: Foo(Some(1),bar)"))
 
 //    jofs.create("foo", Seq(Foo(Some("2"), "baz")))
 //    jofs.create("foo", Seq(Foo(None, "baz"))) mustEqual Left(Failure(409, "Duplicate resource cannot be created: Foo(Some(1),bar)"))
-
+//
 //    jofs.create("ccy", Seq(Currency(Some("1"), "NZD", "$")))
 //    jofs.create("ccy", Seq(Currency(Some("1"), "NZD", "$"))) mustEqual 1
   }

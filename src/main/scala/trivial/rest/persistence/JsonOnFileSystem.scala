@@ -13,7 +13,7 @@ import trivial.rest.{Failure, Resource}
 import scala.reflect.ClassTag
 import scala.reflect.io.{Directory, File}
 
-class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser, validator: PersistenceValidator = CheckNothing) extends Persister with Memo {
+class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persister with Memo {
 
   override def delete[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Int] =
     for {
@@ -85,14 +85,12 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser, validator: Pe
   private lazy val timestampFormat: DateTimeFormatter = DateTimeFormat.forPattern("yyyyddMMHHmmssSSS")
   private def stamp(): String = DateTime.now(DateTimeZone.UTC).toString(timestampFormat)
 
-  override def create[T <: Resource[T] : Manifest](resourceName: String, newItems: Seq[T]): Either[Failure, Int] = {
-    def saveNewUniverse(itemsToAdd: Seq[T]) = read[T](resourceName).right.map { previousItems =>
-      saveOnly(resourceName, previousItems ++ itemsToAdd)
+  // TODO - CAS - 14/09/15 - Check for duplicates - a persistence layer concern
+  override def create[T <: Resource[T] : Manifest](resourceName: String, newItems: Seq[T]) =
+    read[T](resourceName).right.map { previousItems =>
+      saveOnly(resourceName, previousItems ++ newItems)
       newItems.size
     }
-
-    validator.validate(resourceName, newItems, this).right.flatMap(saveNewUniverse)
-  }
 
   private def saveOnly[T <: Resource[T] : Manifest](resourceName: String, toSave: Seq[T]): Unit = {
     // TODO - CAS - 09/06/15 - Change this to call serialiser.serialise(previousItems ++ newItems)
