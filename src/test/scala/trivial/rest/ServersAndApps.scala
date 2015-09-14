@@ -1,24 +1,10 @@
 package trivial.rest
 
-import com.twitter.finatra.http.{Controller, HttpServer}
-import com.twitter.finatra.http.filters.CommonFilters
-import com.twitter.finatra.http.routing.HttpRouter
-import trivial.rest.controller.finatra.{NonHidingExceptionsMapper, UsableController}
 import trivial.rest.persistence.{JsonOnFileSystem, Persister}
 import trivial.rest.serialisation.{Json4sSerialiser, Serialiser}
-import trivial.rest.validation.{RuleBasedRestValidator, RestValidator}
+import trivial.rest.validation.{RestValidator, RuleBasedRestValidator}
 
 import scala.reflect.io.Directory
-
-class TrivialFinatraServer extends HttpServer {
-  val controller = new UsableController {}
-
-  override def configureHttp(router: HttpRouter) =
-    router
-      .exceptionMapper[NonHidingExceptionsMapper]
-      .filter[CommonFilters]
-      .add(controller)
-}
 
 class TestFinatraServer(docRoot: Directory,
                        uriRoot: String,

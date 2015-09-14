@@ -1,6 +1,6 @@
 package trivial.rest
 
-import com.twitter.finagle.httpx.{ParamMap, Response, MediaType, Request}
+import com.twitter.finagle.httpx.{MediaType, Request, Response}
 import com.twitter.util.Future
 import org.json4s._
 import trivial.rest.controller.finatra.UsableController
@@ -164,13 +164,7 @@ class Rest(uriRoot: String,
 
   def addGetAll[T <: Resource[T] : Manifest](resourceName: String): Unit = {
     get(pathTo(resourceName)) { request: Request =>
-      val y: Persister = persister
-      println(s"y: ${y}")
-      val z: ParamMap = request.params
-      println(s"z: ${z}")
-      val x: Either[Failure, Seq[T]] = y.read[T](resourceName, z)
-      println(s"x: ${x}")
-      respond(x)
+      respond(persister.read[T](resourceName, request.params))
     }
   }
 
