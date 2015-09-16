@@ -33,7 +33,7 @@ class Rest(uriRoot: String,
   private val forwardMigrations = mutable.Map.empty[Class[_], _ => _]
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"
 
-  import controller._
+//  import controller._
 
 //  notFound { request: Request =>
 //    // TODO - CAS - 24/06/15 - Match this to a resource path (res, res/:id or res?a=b)
@@ -68,15 +68,15 @@ class Rest(uriRoot: String,
     // TODO - CAS - 03/05/15 - add a mapping from HttpMethod to controller function, as the first stage of abstracting the Controller
 
     def methodNotSupported(httpMethod: HttpMethod): (Request) => Future[Response] = { request: Request =>
-      response.status(405).plain(unsupportedError(httpMethod)).toFuture
+      controller.response.status(405).plain(unsupportedError(httpMethod)).toFuture
     }
 
     unsupportedMethods foreach {
-      case GetAll => get(pathTo(resourceName), resourceName) { methodNotSupported(GetAll) }
-      case Post => post(pathTo(resourceName), resourceName) { methodNotSupported(Post) }
+      case GetAll => controller.get(pathTo(resourceName), resourceName) { methodNotSupported(GetAll) }
+      case Post => controller.post(pathTo(resourceName), resourceName) { methodNotSupported(Post) }
       case Get => // get(pathTo(resourceName), resourceName) { methodNotSupported(GetAll) } // us2(get, Get, ":idParam")
-      case Put => put(pathTo(resourceName), resourceName) { methodNotSupported(Put) }
-      case Delete => delete(pathTo(resourceName), resourceName) { methodNotSupported(Delete) }
+      case Put => controller.put(pathTo(resourceName), resourceName) { methodNotSupported(Put) }
+      case Delete => controller.delete(pathTo(resourceName), resourceName) { methodNotSupported(Delete) }
       case x => throw new UnsupportedOperationException(s"I haven't built unsupport for $x yet")
     }
 
@@ -106,14 +106,14 @@ class Rest(uriRoot: String,
   }
 
   private def backwardsCompatibleAlias[T <: Resource[T] : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {
-    get(pathTo(alias)) { request: Request =>
+    controller.get(pathTo(alias)) { request: Request =>
       respond(persister.read[T](Resource.name[T]).right.map(seqTs => seqTs map backwardsView))
     }
   }
 
   def addPost[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
     // TODO - CAS - 22/06/15 - Don't allow POST for Hardcoded Resouces
-    post(pathTo(resourceName)) { request: Request =>
+    controller.post(pathTo(resourceName)) { request: Request =>
       respondChanged(createResources(serialiser.deserialise(request.getContentString())), "added")
       // TODO - CAS - 22/04/15 - Rebuild cache of T
     }
@@ -142,19 +142,19 @@ class Rest(uriRoot: String,
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
   def addPut[T <: Resource[T] : Manifest](resourceName: String): Unit = {
-    put(s"${pathTo(resourceName)}/:id") { request: Request =>
+    controller.put(s"${pathTo(resourceName)}/:id") { request: Request =>
       respondChanged(updateResources(serialiser.deserialise(request.getContentString())), "updated")
     }
   }
 
   def addDelete[T <: Resource[T] : Manifest](resourceName: String): Unit = {
-    delete(s"${pathTo(resourceName)}/:id") { request: Request =>
+    controller.delete(s"${pathTo(resourceName)}/:id") { request: Request =>
       respondChanged(persister.delete[T](resourceName, request.params("id")), "deleted")
     }
   }
 
   def addGet[T <: Resource[T] : ClassTag : Manifest](resourceName: String): Unit = {
-    get(s"${pathTo(resourceName)}/:id") { request: Request =>
+    controller.get(s"${pathTo(resourceName)}/:id") { request: Request =>
       def toEither[T : ClassTag](option: Option[T]): Either[Failure, T] =
         option.fold[Either[Failure, T]](Left(Failure(404, s"Not found: $resourceName with ID ${request.params("id")}")))(t => Right(t))
 
@@ -163,7 +163,7 @@ class Rest(uriRoot: String,
   }
 
   def addGetAll[T <: Resource[T] : Manifest](resourceName: String): Unit = {
-    get(pathTo(resourceName)) { request: Request =>
+    controller.get(pathTo(resourceName)) { request: Request =>
       respond(persister.read[T](resourceName, request.params))
     }
   }
@@ -171,31 +171,31 @@ class Rest(uriRoot: String,
   // TODO - CAS - 24/06/15 - Combinify all three ...
   def respondChanged[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, Int], direction: String) =
     result match {
-      case Right(count) => response.ok.body( s"""{"${direction}Count":"$count"}""").contentType(utf8Json).toFuture
-      case Left(failure) => response.status(failure.statusCode).plain(failure.describe).toFuture
+      case Right(count) => controller.response.ok.body( s"""{"${direction}Count":"$count"}""").contentType(utf8Json).toFuture
+      case Left(failure) => controller.response.status(failure.statusCode).plain(failure.describe).toFuture
     }
 
   private def respond[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]) =
     result match {
-      case Right(seqTs) => response.ok.body(serialiser.serialise(seqTs)).contentType(utf8Json).toFuture
-      case Left(failure) => response.status(failure.statusCode).plain(failure.describe).toFuture
+      case Right(seqTs) => controller.response.ok.body(serialiser.serialise(seqTs)).contentType(utf8Json).toFuture
+      case Left(failure) => controller.response.status(failure.statusCode).plain(failure.describe).toFuture
     }
 
   private def respondSingle[T <: AnyRef : ClassTag](result: Either[Failure, T]) =
     result match {
-      case Right(t) => response.ok.body(serialiser.serialise(t)).contentType(utf8Json).toFuture
-      case Left(failure) => response.status(failure.statusCode).plain(failure.describe).toFuture
+      case Right(t) => controller.response.ok.body(serialiser.serialise(t)).contentType(utf8Json).toFuture
+      case Left(failure) => controller.response.status(failure.statusCode).plain(failure.describe).toFuture
     }
 
   // TODO - CAS - 25/06/15 - Be more specific, e.g. /:unsuppported?abc --> GET is not supported for :unsupported, which only supports: POST, PUT
-  get(s"${uriRoot.stripSuffix("/")}/:unsupportedResourceName") { request: Request =>
+  controller.get(s"${uriRoot.stripSuffix("/")}/:unsupportedResourceName") { request: Request =>
     val unsupportedResource = request.params("unsupportedResourceName")
-    response.status(404).plain(s"Resource type not supported: $unsupportedResource").toFuture
+    controller.response.status(404).plain(s"Resource type not supported: $unsupportedResource").toFuture
   }
 
-  get(uriRoot) { request: Request =>
+  controller.get(uriRoot) { request: Request =>
     // TODO - CAS - 07/05/15 - the /[API ROOT]/ URI should be a resource: an array of available resource links and methods; ResourceDescriptor(relativeUri: String, httpMethods: HttpMethod*)
-    response.ok.body(serialiser.serialise(resources.sorted[String])).contentType(utf8Json).toFuture
+    controller.response.ok.body(serialiser.serialise(resources.sorted[String])).contentType(utf8Json).toFuture
   }
 
 //  controller.errorHandler = controller.errorHandler match {
