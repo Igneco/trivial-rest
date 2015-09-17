@@ -12,7 +12,7 @@ import org.jboss.netty.handler.codec.http.HttpHeaders.Names._
 import org.json4s.Formats
 import org.scalamock.scalatest.MockFactory
 import trivial.rest.TestDirectories._
-import trivial.rest.controller.finatra.{NonHidingExceptionsMapper, UsableController}
+import trivial.rest.controller.finatra.{NonHidingExceptionsMapper, FinatraController}
 import trivial.rest.persistence.{JsonOnFileSystem, Persister}
 import trivial.rest.serialisation.{Json4sSerialiser, Serialiser}
 import trivial.rest.validation.{RuleBasedRestValidator, RestValidator}

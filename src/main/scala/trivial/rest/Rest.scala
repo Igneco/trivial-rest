@@ -3,7 +3,8 @@ package trivial.rest
 import com.twitter.finagle.httpx.{MediaType, Request, Response}
 import com.twitter.util.Future
 import org.json4s._
-import trivial.rest.controller.finatra.UsableController
+import trivial.rest.controller.Controller
+import trivial.rest.controller.finatra.FinatraController
 import trivial.rest.persistence.Persister
 import trivial.rest.serialisation.Serialiser
 import trivial.rest.validation.RestValidator
@@ -24,7 +25,8 @@ import scala.reflect.ClassTag
  *   Multiple versions of a case class supported at the same time
  */
 class Rest(uriRoot: String,
-           val controller: UsableController,
+           val controller2: Controller,
+           val controller: FinatraController,
            val serialiser: Serialiser,
            persister: Persister,
            validator: RestValidator) {
@@ -65,19 +67,8 @@ class Rest(uriRoot: String,
         s"by /$resourceName are: ${supportedMethods.mkString(", ")}"
     }
 
-    // TODO - CAS - 03/05/15 - add a mapping from HttpMethod to controller function, as the first stage of abstracting the Controller
-
-    def methodNotSupported(httpMethod: HttpMethod): (Request) => Future[Response] = { request: Request =>
-      controller.response.status(405).plain(unsupportedError(httpMethod)).toFuture
-    }
-
-    unsupportedMethods foreach {
-      case GetAll => controller.get(pathTo(resourceName), resourceName) { methodNotSupported(GetAll) }
-      case Post => controller.post(pathTo(resourceName), resourceName) { methodNotSupported(Post) }
-      case Get => // get(pathTo(resourceName), resourceName) { methodNotSupported(GetAll) } // us2(get, Get, ":idParam")
-      case Put => controller.put(pathTo(resourceName), resourceName) { methodNotSupported(Put) }
-      case Delete => controller.delete(pathTo(resourceName), resourceName) { methodNotSupported(Delete) }
-      case x => throw new UnsupportedOperationException(s"I haven't built unsupport for $x yet")
+    unsupportedMethods.foreach { method =>
+      controller2.unsupport(pathTo(resourceName), method, unsupportedError(method))
     }
 
     this
