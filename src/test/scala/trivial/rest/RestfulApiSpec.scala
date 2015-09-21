@@ -227,6 +227,7 @@ class RestfulApiSpec extends FeatureTest with MockFactory {
 //  }
 //
 //  "We are tolerant of URI-end slashes" in {
+//    // NOTE: this is no longer supported by Finatra (v 2.0.0RC)
 //    // Use the regex matcher: get("/api/monkey/?")
 //    pending
 //  }
