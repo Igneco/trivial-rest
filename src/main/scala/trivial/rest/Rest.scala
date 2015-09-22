@@ -61,11 +61,9 @@ class Rest(uriRoot: String,
 
     val unsupportedMethods: Set[HttpMethod] = HttpMethod.all.diff(supportedMethods.toSet)
 
-    def unsupportedError(httpMethod: HttpMethod) = {
-      println(s"Generating unsupportedError for HTTP method: ${httpMethod}")
+    def unsupportedError(httpMethod: HttpMethod) =
       s"Method not allowed: $httpMethod. Methods supported " +
         s"by /$resourceName are: ${supportedMethods.mkString(", ")}"
-    }
 
     unsupportedMethods.foreach { method =>
       controller2.unsupport(pathTo(resourceName), method, unsupportedError(method))
@@ -98,7 +96,7 @@ class Rest(uriRoot: String,
 
   private def backwardsCompatibleAlias[T <: Resource[T] : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {
     controller.get(pathTo(alias)) { request: Request =>
-      respond(persister.read[T](Resource.name[T]).right.map(seqTs => seqTs map backwardsView))
+      respondSingle(persister.read[T](Resource.name[T]).right.map(seqTs => seqTs map backwardsView))
     }
   }
 
@@ -146,8 +144,8 @@ class Rest(uriRoot: String,
 
   def addGet[T <: Resource[T] : ClassTag : Manifest](resourceName: String): Unit = {
     controller.get(s"${pathTo(resourceName)}/:id") { request: Request =>
-      def toEither[T : ClassTag](option: Option[T]): Either[Failure, T] =
-        option.fold[Either[Failure, T]](Left(Failure(404, s"Not found: $resourceName with ID ${request.params("id")}")))(t => Right(t))
+      def toEither[X : ClassTag](option: Option[X]): Either[Failure, X] =
+        option.fold[Either[Failure, X]](Left(Failure(404, s"Not found: $resourceName with ID ${request.params("id")}")))(t => Right(t))
 
       respondSingle(persister.read[T](resourceName, request.params("id")).right.flatMap(seqTs => toEither(seqTs.headOption)))
     }
@@ -159,20 +157,24 @@ class Rest(uriRoot: String,
     }
   }
 
+
+
   // TODO - CAS - 24/06/15 - Combinify all three ...
-  def respondChanged[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, Int], direction: String) =
+
+
+  def respondChanged[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, Int], direction: String): Future[Response] =
     result match {
       case Right(count) => controller.response.ok.body( s"""{"${direction}Count":"$count"}""").contentType(utf8Json).toFuture
       case Left(failure) => controller.response.status(failure.statusCode).plain(failure.describe).toFuture
     }
 
-  private def respond[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]) =
+  private def respond[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]): Future[Response] =
     result match {
       case Right(seqTs) => controller.response.ok.body(serialiser.serialise(seqTs)).contentType(utf8Json).toFuture
       case Left(failure) => controller.response.status(failure.statusCode).plain(failure.describe).toFuture
     }
 
-  private def respondSingle[T <: AnyRef : ClassTag](result: Either[Failure, T]) =
+  private def respondSingle[T <: AnyRef : ClassTag](result: Either[Failure, T]): Future[Response] =
     result match {
       case Right(t) => controller.response.ok.body(serialiser.serialise(t)).contentType(utf8Json).toFuture
       case Left(failure) => controller.response.status(failure.statusCode).plain(failure.describe).toFuture
