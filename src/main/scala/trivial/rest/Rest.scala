@@ -73,10 +73,14 @@ class Rest(uriRoot: String,
   }
 
   def prepopulate[T <: Resource[T] : ClassTag : Manifest](initialPopulation: Seq[T]): Either[Failure, Int] = {
-    def removeIds[T <: Resource[T]](seqTs: Seq[T]) = seqTs.map(_.withId(None))
-    def eliminateDupes(inputs: Seq[T], existing: Either[Failure, Seq[T]]) = (existing.right map removeIds).right.map(exs => removeIds(inputs) diff exs)
+    def removeId[T <: Resource[T]](t: T) = t.withId(None)
+    def eliminateDupes(inputs: Seq[T], existing: Seq[T]) = Right((inputs map removeId) diff (existing map removeId))
 
-    createResources(eliminateDupes(initialPopulation, persister.read[T](Resource.name[T])))
+    for {
+      existingResources <- persister.read[T](Resource.name[T]).right
+      withoutDupes <- eliminateDupes(initialPopulation, existingResources).right
+      numberCreated <- createResources(withoutDupes).right
+    } yield numberCreated
   }
 
   def migrate[T <: Resource[T] : ClassTag : Manifest](forwardMigration: (T) => T = identity[T] _,
@@ -103,15 +107,20 @@ class Rest(uriRoot: String,
   def addPost[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
     // TODO - CAS - 22/06/15 - Don't allow POST for Hardcoded Resouces
     controller.post(pathTo(resourceName)) { request: Request =>
-      respondChanged(createResources(serialiser.deserialise(request.getContentString())), "added")
+      val result = for {
+        newResources <- serialiser.deserialise(request.getContentString()).right
+        numberAdded <- createResources(newResources).right
+      } yield s"""{"addedCount":"$numberAdded"}"""
+
+      respond(result)
       // TODO - CAS - 22/04/15 - Rebuild cache of T
     }
   }
 
   // TODO - CAS - 03/07/15 - Also combinify
-  private def createResources[T <: Resource[T] : Manifest](deserialisedT: Either[Failure, Seq[T]]): Either[Failure, Int] =
+  private def createResources[T <: Resource[T] : Manifest](deserialisedT: Seq[T]): Either[Failure, Int] =
     try {
-      val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate(_, Post))
+      val validatedT: Either[Failure, Seq[T]] = validator.validate(deserialisedT, Post)
       val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(Some(persister.nextSequenceId))))
       val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(resources => persister.create(Resource.name[T], resources))
       saved
@@ -153,30 +162,22 @@ class Rest(uriRoot: String,
 
   def addGetAll[T <: Resource[T] : Manifest](resourceName: String): Unit = {
     controller.get(pathTo(resourceName)) { request: Request =>
-      respond(persister.read[T](resourceName, request.params))
+      respondMultiple(persister.read[T](resourceName, request.params))
     }
   }
 
+  private def respondChanged[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, Int], direction: String): Future[Response] =
+    respond(result.right.map(count => s"""{"${direction}Count":"$count"}"""), direction)
 
-
-  // TODO - CAS - 24/06/15 - Combinify all three ...
-
-
-  def respondChanged[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, Int], direction: String): Future[Response] =
-    result match {
-      case Right(count) => controller.response.ok.body( s"""{"${direction}Count":"$count"}""").contentType(utf8Json).toFuture
-      case Left(failure) => controller.response.status(failure.statusCode).plain(failure.describe).toFuture
-    }
-
-  private def respond[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]): Future[Response] =
-    result match {
-      case Right(seqTs) => controller.response.ok.body(serialiser.serialise(seqTs)).contentType(utf8Json).toFuture
-      case Left(failure) => controller.response.status(failure.statusCode).plain(failure.describe).toFuture
-    }
+  private def respondMultiple[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]): Future[Response] =
+    respond(result.right.map(seqTs => serialiser.serialise(seqTs)))
 
   private def respondSingle[T <: AnyRef : ClassTag](result: Either[Failure, T]): Future[Response] =
+    respond(result.right.map(t => serialiser.serialise(t)))
+
+  private def respond[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, String], direction: String = ""): Future[Response] =
     result match {
-      case Right(t) => controller.response.ok.body(serialiser.serialise(t)).contentType(utf8Json).toFuture
+      case Right(content) => controller.response.ok.body(content).contentType(utf8Json).toFuture
       case Left(failure) => controller.response.status(failure.statusCode).plain(failure.describe).toFuture
     }
 
