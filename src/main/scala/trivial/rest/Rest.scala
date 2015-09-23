@@ -108,8 +108,8 @@ class Rest(uriRoot: String,
     // TODO - CAS - 22/06/15 - Don't allow POST for Hardcoded Resouces
     controller.post(pathTo(resourceName)) { request: Request =>
       val result = for {
-        newResources <- serialiser.deserialise(request.getContentString()).right
-        numberAdded <- createResources(newResources).right
+        resources <- serialiser.deserialise(request.getContentString()).right
+        numberAdded <- createResources(resources).right
       } yield s"""{"addedCount":"$numberAdded"}"""
 
       respond(result)
@@ -117,20 +117,34 @@ class Rest(uriRoot: String,
     }
   }
 
+  def addPut[T <: Resource[T] : Manifest](resourceName: String): Unit = {
+    controller.put(s"${pathTo(resourceName)}/:id") { request: Request =>
+      val result = for {
+        resources <- serialiser.deserialise(request.getContentString()).right
+        numberAdded <- updateResources(resources).right
+      } yield s"""{"updatedCount":"$numberAdded"}"""
+
+      respond(result)
+      // TODO - CAS - 22/09/15 - Rebuild cache of T
+    }
+  }
+
+  def addId[T <: Resource[T]](t: T): T = t.withId(Some(persister.nextSequenceId))
+
   // TODO - CAS - 03/07/15 - Also combinify
   private def createResources[T <: Resource[T] : Manifest](deserialisedT: Seq[T]): Either[Failure, Int] =
     try {
       val validatedT: Either[Failure, Seq[T]] = validator.validate(deserialisedT, Post)
-      val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(_.withId(Some(persister.nextSequenceId))))
+      val copiedWithSeqId: Either[Failure, Seq[T]] = validatedT.right.map(_.map(addId))
       val saved: Either[Failure, Int] = copiedWithSeqId.right.flatMap(resources => persister.create(Resource.name[T], resources))
       saved
     } catch {
       case e: Exception => Left(FailFactory.persistCreate(pathTo(Resource.name[T]), ExceptionDecoder.readable(e)))
     }
 
-  private def updateResources[T <: Resource[T] : Manifest](deserialisedT: Either[Failure, Seq[T]]): Either[Failure, Int] =
+  private def updateResources[T <: Resource[T] : Manifest](deserialisedT: Seq[T]): Either[Failure, Int] =
     try {
-      val validatedT: Either[Failure, Seq[T]] = deserialisedT.right.flatMap(validator.validate(_, Put))
+      val validatedT: Either[Failure, Seq[T]] = validator.validate(deserialisedT, Put)
       val saved: Either[Failure, Int] = validatedT.right.flatMap(resources => persister.update(Resource.name[T], resources))
       saved
     } catch {
@@ -138,12 +152,6 @@ class Rest(uriRoot: String,
     }
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
-
-  def addPut[T <: Resource[T] : Manifest](resourceName: String): Unit = {
-    controller.put(s"${pathTo(resourceName)}/:id") { request: Request =>
-      respondChanged(updateResources(serialiser.deserialise(request.getContentString())), "updated")
-    }
-  }
 
   def addDelete[T <: Resource[T] : Manifest](resourceName: String): Unit = {
     controller.delete(s"${pathTo(resourceName)}/:id") { request: Request =>
@@ -156,7 +164,12 @@ class Rest(uriRoot: String,
       def toEither[X : ClassTag](option: Option[X]): Either[Failure, X] =
         option.fold[Either[Failure, X]](Left(Failure(404, s"Not found: $resourceName with ID ${request.params("id")}")))(t => Right(t))
 
-      respondSingle(persister.read[T](resourceName, request.params("id")).right.flatMap(seqTs => toEither(seqTs.headOption)))
+      val result = for {
+        itemsRead <- persister.read[T](resourceName, request.params("id")).right
+        firstItemRead <- toEither(itemsRead.headOption).right
+      } yield serialiser.serialise(firstItemRead)
+
+      respond(result)
     }
   }
 
@@ -165,6 +178,8 @@ class Rest(uriRoot: String,
       respondMultiple(persister.read[T](resourceName, request.params))
     }
   }
+
+  // Kill these, then extract Controller methods
 
   private def respondChanged[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, Int], direction: String): Future[Response] =
     respond(result.right.map(count => s"""{"${direction}Count":"$count"}"""), direction)
