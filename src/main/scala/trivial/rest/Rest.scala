@@ -125,21 +125,12 @@ class Rest(uriRoot: String,
 
   def addDelete[T <: Resource[T] : Manifest](resourceName: String): Unit = {
     controller.delete(s"${pathTo(resourceName)}/:id") { request: Request =>
+      val result = for {
+        deletedCount <- persister.delete[T](resourceName, request.params("id")).right
+      } yield s"""{"deletedCount":"$deletedCount"}"""
 
-//      respond(result.right.map(count => s"""{"${direction}Count":"$count"}"""), direction)
-
-//      val result = for {
-//        resources <- serialiser.deserialise(request.getContentString()).right
-//        numberAdded <- createResources(resources).right
-//      } yield s"""{"addedCount":"$numberAdded"}"""
-//
-//      respond(result)
-//      // TODO - CAS - 22/04/15 - Rebuild cache of T
-
-
-
-
-      respondChanged(persister.delete[T](resourceName, request.params("id")), "deleted")
+      respond(result)
+      // TODO - CAS - 22/04/15 - Rebuild cache of T
     }
   }
 
@@ -154,8 +145,8 @@ class Rest(uriRoot: String,
     controller.post(pathTo(resourceName)) { request: Request =>
       val result = for {
         resources <- serialiser.deserialise(request.getContentString()).right
-        numberAdded <- createResources(resources).right
-      } yield s"""{"addedCount":"$numberAdded"}"""
+        addedCount <- createResources(resources).right
+      } yield s"""{"addedCount":"$addedCount"}"""
 
       respond(result)
       // TODO - CAS - 22/04/15 - Rebuild cache of T
@@ -166,8 +157,8 @@ class Rest(uriRoot: String,
     controller.put(s"${pathTo(resourceName)}/:id") { request: Request =>
       val result = for {
         resources <- serialiser.deserialise(request.getContentString()).right
-        numberAdded <- updateResources(resources).right
-      } yield s"""{"updatedCount":"$numberAdded"}"""
+        updatedCount <- updateResources(resources).right
+      } yield s"""{"updatedCount":"$updatedCount"}"""
 
       respond(result)
       // TODO - CAS - 22/09/15 - Rebuild cache of T
@@ -200,8 +191,8 @@ class Rest(uriRoot: String,
 
   // Kill these, then extract Controller methods
 
-  private def respondChanged[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, Int], direction: String): Future[Response] =
-    respond(result.right.map(count => s"""{"${direction}Count":"$count"}"""), direction)
+//  private def respondChanged[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, Int], direction: String): Future[Response] =
+//    respond(result.right.map(count => s"""{"${direction}Count":"$count"}"""), direction)
 
   private def respondMultiple[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]): Future[Response] =
     respond(result.right.map(seqTs => serialiser.serialise(seqTs)))
