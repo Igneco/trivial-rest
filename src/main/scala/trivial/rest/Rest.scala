@@ -86,7 +86,7 @@ class Rest(uriRoot: String,
   def migrate[T <: Resource[T] : ClassTag : Manifest](forwardMigration: (T) => T = identity[T] _,
                                                       backwardsView: (T) => AnyRef = identity[T] _,
                                                       oldResourceName: Option[String] = None): Either[Failure, Int] = {
-    oldResourceName.foreach{ name =>
+    oldResourceName.foreach { name =>
       backwardsCompatibleAlias(name, backwardsView)
       addPost[T](name)
     }
@@ -100,7 +100,52 @@ class Rest(uriRoot: String,
 
   private def backwardsCompatibleAlias[T <: Resource[T] : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {
     controller.get(pathTo(alias)) { request: Request =>
-      respondSingle(persister.read[T](Resource.name[T]).right.map(seqTs => seqTs map backwardsView))
+      val result = for {
+        itemsRead <- persister.read[T](Resource.name[T]).right
+        oldFormatItems <- Right(itemsRead map backwardsView).right
+      } yield serialiser.serialise(oldFormatItems)
+      respond(result)
+    }
+  }
+
+  def addGet[T <: Resource[T] : ClassTag : Manifest](resourceName: String): Unit = {
+    controller.get(s"${pathTo(resourceName)}/:id") { request: Request =>
+      val msg = s"Not found: $resourceName with ID ${request.params("id")}"
+      val result = for {
+        itemsRead <- persister.read[T](resourceName, request.params("id")).right
+        firstItemRead <- toEither(itemsRead.headOption, msg).right
+      } yield serialiser.serialise(firstItemRead)
+
+      respond(result)
+    }
+  }
+
+  private def toEither[X : ClassTag](option: Option[X], notFoundMsg: String): Either[Failure, X] =
+    option.fold[Either[Failure, X]](Left(Failure(404, notFoundMsg)))(t => Right(t))
+
+  def addDelete[T <: Resource[T] : Manifest](resourceName: String): Unit = {
+    controller.delete(s"${pathTo(resourceName)}/:id") { request: Request =>
+
+//      respond(result.right.map(count => s"""{"${direction}Count":"$count"}"""), direction)
+
+//      val result = for {
+//        resources <- serialiser.deserialise(request.getContentString()).right
+//        numberAdded <- createResources(resources).right
+//      } yield s"""{"addedCount":"$numberAdded"}"""
+//
+//      respond(result)
+//      // TODO - CAS - 22/04/15 - Rebuild cache of T
+
+
+
+
+      respondChanged(persister.delete[T](resourceName, request.params("id")), "deleted")
+    }
+  }
+
+  def addGetAll[T <: Resource[T] : Manifest](resourceName: String): Unit = {
+    controller.get(pathTo(resourceName)) { request: Request =>
+      respondMultiple(persister.read[T](resourceName, request.params))
     }
   }
 
@@ -153,32 +198,6 @@ class Rest(uriRoot: String,
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
-  def addDelete[T <: Resource[T] : Manifest](resourceName: String): Unit = {
-    controller.delete(s"${pathTo(resourceName)}/:id") { request: Request =>
-      respondChanged(persister.delete[T](resourceName, request.params("id")), "deleted")
-    }
-  }
-
-  def addGet[T <: Resource[T] : ClassTag : Manifest](resourceName: String): Unit = {
-    controller.get(s"${pathTo(resourceName)}/:id") { request: Request =>
-      def toEither[X : ClassTag](option: Option[X]): Either[Failure, X] =
-        option.fold[Either[Failure, X]](Left(Failure(404, s"Not found: $resourceName with ID ${request.params("id")}")))(t => Right(t))
-
-      val result = for {
-        itemsRead <- persister.read[T](resourceName, request.params("id")).right
-        firstItemRead <- toEither(itemsRead.headOption).right
-      } yield serialiser.serialise(firstItemRead)
-
-      respond(result)
-    }
-  }
-
-  def addGetAll[T <: Resource[T] : Manifest](resourceName: String): Unit = {
-    controller.get(pathTo(resourceName)) { request: Request =>
-      respondMultiple(persister.read[T](resourceName, request.params))
-    }
-  }
-
   // Kill these, then extract Controller methods
 
   private def respondChanged[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, Int], direction: String): Future[Response] =
@@ -187,8 +206,8 @@ class Rest(uriRoot: String,
   private def respondMultiple[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]): Future[Response] =
     respond(result.right.map(seqTs => serialiser.serialise(seqTs)))
 
-  private def respondSingle[T <: AnyRef : ClassTag](result: Either[Failure, T]): Future[Response] =
-    respond(result.right.map(t => serialiser.serialise(t)))
+//  private def respondSingle[T <: AnyRef : ClassTag](result: Either[Failure, T]): Future[Response] =
+//    respond(result.right.map(t => serialiser.serialise(t)))
 
   private def respond[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, String], direction: String = ""): Future[Response] =
     result match {
