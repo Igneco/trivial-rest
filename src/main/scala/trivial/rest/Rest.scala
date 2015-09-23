@@ -136,7 +136,10 @@ class Rest(uriRoot: String,
 
   def addGetAll[T <: Resource[T] : Manifest](resourceName: String): Unit = {
     controller.get(pathTo(resourceName)) { request: Request =>
-      respondMultiple(persister.read[T](resourceName, request.params))
+      val result = for {
+        allItems <- persister.read[T](resourceName, request.params).right
+      } yield serialiser.serialise(allItems)
+      respond(result)
     }
   }
 
@@ -189,17 +192,6 @@ class Rest(uriRoot: String,
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
-  // Kill these, then extract Controller methods
-
-//  private def respondChanged[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, Int], direction: String): Future[Response] =
-//    respond(result.right.map(count => s"""{"${direction}Count":"$count"}"""), direction)
-
-  private def respondMultiple[T <: AnyRef : ClassTag](result: Either[Failure, Seq[T]]): Future[Response] =
-    respond(result.right.map(seqTs => serialiser.serialise(seqTs)))
-
-//  private def respondSingle[T <: AnyRef : ClassTag](result: Either[Failure, T]): Future[Response] =
-//    respond(result.right.map(t => serialiser.serialise(t)))
-
   private def respond[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, String], direction: String = ""): Future[Response] =
     result match {
       case Right(content) => controller.response.ok.body(content).contentType(utf8Json).toFuture
@@ -217,6 +209,7 @@ class Rest(uriRoot: String,
     controller.response.ok.body(serialiser.serialise(resources.sorted[String])).contentType(utf8Json).toFuture
   }
 
+  // TODO - CAS - 23/09/15 - These are no longer supported by Finatra
 //  controller.errorHandler = controller.errorHandler match {
 //    case Some(handler) => Some(handler)
 //    case None => Some(knownErrorsHandler)
