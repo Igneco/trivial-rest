@@ -4,6 +4,8 @@ resolvers += "twitter-repo" at "http://maven.twttr.com"
 
 updateOptions := updateOptions.value.withCachedResolution(cachedResoluton = true)
 
+val finatraVersion = "2.0.1"
+
 val productionDependencies = Seq(
   "org.json4s" %% "json4s-native" % "3.2.11"
     exclude("org.scala-lang", "scala-compiler")
@@ -11,17 +13,17 @@ val productionDependencies = Seq(
   "org.json4s" %% "json4s-ext" % "3.2.11",
 
   // TODO - CAS - 08/09/15 - Holy shit: this is an insane dependency tree. Thanks Finatra.
-  "com.twitter.finatra" %% "finatra-http" % "2.0.0.RC1" withSources(),
-  "com.twitter.finatra" %% "finatra-http" % "2.0.0.RC1" % "test" withSources(),
-  "com.twitter.finatra" %% "finatra-http" % "2.0.0.RC1" % "test" classifier "tests" withSources(),
-  "com.twitter.inject" %% "inject-server" % "2.0.0.RC1" % "test" withSources(),
-  "com.twitter.inject" %% "inject-server" % "2.0.0.RC1" % "test" classifier "tests" withSources(),
-  "com.twitter.inject" %% "inject-app" % "2.0.0.RC1" % "test" withSources(),
-  "com.twitter.inject" %% "inject-app" % "2.0.0.RC1" % "test" classifier "tests" withSources(),
-  "com.twitter.inject" %% "inject-core" % "2.0.0.RC1" % "test" withSources(),
-  "com.twitter.inject" %% "inject-core" % "2.0.0.RC1" % "test" classifier "tests" withSources(),
-  "com.twitter.inject" %% "inject-modules" % "2.0.0.RC1" % "test" withSources(),
-  "com.twitter.inject" %% "inject-modules" % "2.0.0.RC1" % "test" classifier "tests" withSources(),
+  "com.twitter.finatra" %% "finatra-http" % finatraVersion withSources(),
+  "com.twitter.finatra" %% "finatra-http" % finatraVersion % "test" withSources(),
+  "com.twitter.finatra" %% "finatra-http" % finatraVersion % "test" classifier "tests" withSources(),
+  "com.twitter.inject" %% "inject-server" % finatraVersion % "test" withSources(),
+  "com.twitter.inject" %% "inject-server" % finatraVersion % "test" classifier "tests" withSources(),
+  "com.twitter.inject" %% "inject-app" % finatraVersion % "test" withSources(),
+  "com.twitter.inject" %% "inject-app" % finatraVersion % "test" classifier "tests" withSources(),
+  "com.twitter.inject" %% "inject-core" % finatraVersion % "test" withSources(),
+  "com.twitter.inject" %% "inject-core" % finatraVersion % "test" classifier "tests" withSources(),
+  "com.twitter.inject" %% "inject-modules" % finatraVersion % "test" withSources(),
+  "com.twitter.inject" %% "inject-modules" % finatraVersion % "test" classifier "tests" withSources(),
   "com.typesafe.scala-logging" %% "scala-logging-slf4j" % "2.1.2",
   "org.slf4j" % "slf4j-simple" % "1.7.12"
   //    exclude("org.scalatest", "scalatest_2.10")
