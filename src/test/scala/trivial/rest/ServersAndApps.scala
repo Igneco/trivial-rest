@@ -12,7 +12,7 @@ class TestFinatraServer(docRoot: Directory,
                        persister: Persister,
                        validator: RestValidator) extends TrivialFinatraServer {
 
-  val rest = new Rest(uriRoot, controller, controller, serialiser, persister, validator)
+  val rest = new Rest(uriRoot, controller, serialiser, persister, validator)
     .resource[Spaceship](GetAll, Post)
     .resource[Vector](GetAll)
     .resource[Planet](GetAll, Post)
@@ -27,7 +27,7 @@ class MyExampleFintraServer(docRoot: Directory, uriRoot: String) extends Trivial
   val persister = new JsonOnFileSystem(docRoot, serialiser)
   val validator = new RuleBasedRestValidator()
 
-  new Rest(uriRoot, controller, controller, serialiser, persister, validator)
+  new Rest(uriRoot, controller, serialiser, persister, validator)
     .resource[Spaceship](GetAll, Post)
     .resource[Vector](GetAll)
     .resource[Planet](GetAll, Post)

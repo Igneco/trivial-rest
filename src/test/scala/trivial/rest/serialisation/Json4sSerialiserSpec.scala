@@ -118,8 +118,8 @@ class Json4sSerialiserSpec extends WordSpec with MustMatchers {
     }
 
     val typeSerialiser = TypeSerialiser[BigDecimal](
-    b => s"ABC $b",
-    { case r"""ABC (\d+\.\d+)$amount"""  => Some(BigDecimal(amount)) }
+      b => s"ABC $b",
+      { case r"""ABC (\d+\.\d+)$amount""" => Some(BigDecimal(amount)) }
     )
   }
 

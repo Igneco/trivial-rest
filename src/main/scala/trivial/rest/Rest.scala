@@ -3,7 +3,7 @@ package trivial.rest
 import com.twitter.finagle.httpx.{MediaType, Request, Response}
 import com.twitter.util.Future
 import org.json4s._
-import trivial.rest.controller.Controller
+import trivial.rest.controller.{TrivialResponse, TrivialRequest, TrivialController}
 import trivial.rest.controller.finatra.FinatraController
 import trivial.rest.persistence.Persister
 import trivial.rest.serialisation.Serialiser
@@ -25,8 +25,7 @@ import scala.reflect.ClassTag
  *   Multiple versions of a case class supported at the same time
  */
 class Rest(uriRoot: String,
-           val controller2: Controller,
-           val controller: FinatraController,
+           val controller2: TrivialController,
            val serialiser: Serialiser,
            persister: Persister,
            validator: RestValidator) {
@@ -99,7 +98,7 @@ class Rest(uriRoot: String,
   }
 
   private def backwardsCompatibleAlias[T <: Resource[T] : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {
-    controller.get(pathTo(alias)) { request: Request =>
+    controller2.get(pathTo(alias)) { request: TrivialRequest =>
       val result = for {
         itemsRead <- persister.read[T](Resource.name[T]).right
         oldFormatItems <- Right(itemsRead map backwardsView).right
@@ -109,10 +108,10 @@ class Rest(uriRoot: String,
   }
 
   def addGet[T <: Resource[T] : ClassTag : Manifest](resourceName: String): Unit = {
-    controller.get(s"${pathTo(resourceName)}/:id") { request: Request =>
-      val msg = s"Not found: $resourceName with ID ${request.params("id")}"
+    controller2.get(s"${pathTo(resourceName)}/:id") { request: TrivialRequest =>
+      val msg = s"Not found: $resourceName with ID ${request.urlParam("id")}"
       val result = for {
-        itemsRead <- persister.read[T](resourceName, request.params("id")).right
+        itemsRead <- persister.read[T](resourceName, request.urlParam("id")).right
         firstItemRead <- toEither(itemsRead.headOption, msg).right
       } yield serialiser.serialise(firstItemRead)
 
@@ -124,9 +123,9 @@ class Rest(uriRoot: String,
     option.fold[Either[Failure, X]](Left(Failure(404, notFoundMsg)))(t => Right(t))
 
   def addDelete[T <: Resource[T] : Manifest](resourceName: String): Unit = {
-    controller.delete(s"${pathTo(resourceName)}/:id") { request: Request =>
+    controller2.delete(s"${pathTo(resourceName)}/:id") { request: TrivialRequest =>
       val result = for {
-        deletedCount <- persister.delete[T](resourceName, request.params("id")).right
+        deletedCount <- persister.delete[T](resourceName, request.urlParam("id")).right
       } yield s"""{"deletedCount":"$deletedCount"}"""
 
       respond(result)
@@ -135,19 +134,20 @@ class Rest(uriRoot: String,
   }
 
   def addGetAll[T <: Resource[T] : Manifest](resourceName: String): Unit = {
-    controller.get(pathTo(resourceName)) { request: Request =>
+    controller2.get(pathTo(resourceName)) { req: TrivialRequest =>
       val result = for {
-        allItems <- persister.read[T](resourceName, request.params).right
+        allItems <- persister.read[T](resourceName, req.queryParams).right
       } yield serialiser.serialise(allItems)
+
       respond(result)
     }
   }
 
   def addPost[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
     // TODO - CAS - 22/06/15 - Don't allow POST for Hardcoded Resouces
-    controller.post(pathTo(resourceName)) { request: Request =>
+    controller2.post(pathTo(resourceName)) { request: TrivialRequest =>
       val result = for {
-        resources <- serialiser.deserialise(request.getContentString()).right
+        resources <- serialiser.deserialise(request.contentString).right
         addedCount <- createResources(resources).right
       } yield s"""{"addedCount":"$addedCount"}"""
 
@@ -157,9 +157,9 @@ class Rest(uriRoot: String,
   }
 
   def addPut[T <: Resource[T] : Manifest](resourceName: String): Unit = {
-    controller.put(s"${pathTo(resourceName)}/:id") { request: Request =>
+    controller2.put(s"${pathTo(resourceName)}/:id") { request: TrivialRequest =>
       val result = for {
-        resources <- serialiser.deserialise(request.getContentString()).right
+        resources <- serialiser.deserialise(request.contentString).right
         updatedCount <- updateResources(resources).right
       } yield s"""{"updatedCount":"$updatedCount"}"""
 
@@ -192,21 +192,20 @@ class Rest(uriRoot: String,
 
   def pathTo(resourceName: String) = s"${uriRoot.stripSuffix("/")}/$resourceName"
 
-  private def respond[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, String], direction: String = ""): Future[Response] =
+  private def respond[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, String], direction: String = ""): TrivialResponse =
     result match {
-      case Right(content) => controller.response.ok.body(content).contentType(utf8Json).toFuture
-      case Left(failure) => controller.response.status(failure.statusCode).plain(failure.describe).toFuture
+      case Right(content) => controller2.success(content)
+      case Left(failure) => controller2.failure(failure)
     }
 
   // TODO - CAS - 25/06/15 - Be more specific, e.g. /:unsuppported?abc --> GET is not supported for :unsupported, which only supports: POST, PUT
-  controller.get(s"${uriRoot.stripSuffix("/")}/:unsupportedResourceName") { request: Request =>
-    val unsupportedResource = request.params("unsupportedResourceName")
-    controller.response.status(404).plain(s"Resource type not supported: $unsupportedResource").toFuture
+  controller2.get(s"${uriRoot.stripSuffix("/")}/:unsupportedResourceName") { request: TrivialRequest =>
+    controller2.failure(Failure(404, s"Resource type not supported: ${request.urlParam("unsupportedResourceName")}"))
   }
 
-  controller.get(uriRoot) { request: Request =>
+  controller2.get(uriRoot) { request: TrivialRequest =>
     // TODO - CAS - 07/05/15 - the /[API ROOT]/ URI should be a resource: an array of available resource links and methods; ResourceDescriptor(relativeUri: String, httpMethods: HttpMethod*)
-    controller.response.ok.body(serialiser.serialise(resources.sorted[String])).contentType(utf8Json).toFuture
+    controller2.success(serialiser.serialise(resources.sorted[String]))
   }
 
   // TODO - CAS - 23/09/15 - These are no longer supported by Finatra
