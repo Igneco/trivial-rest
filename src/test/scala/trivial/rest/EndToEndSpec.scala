@@ -5,6 +5,7 @@ import com.twitter.finatra.http.test.EmbeddedHttpServer
 import com.twitter.inject.server.FeatureTest
 import org.jboss.netty.handler.codec.http.HttpHeaders.Names._
 import trivial.rest.TestDirectories._
+import trivial.rest.controller.finatra.TestFinatraServer
 import trivial.rest.persistence.JsonOnFileSystem
 import trivial.rest.serialisation.Json4sSerialiser
 import trivial.rest.validation.{RuleBasedRestValidator, CommonRules}

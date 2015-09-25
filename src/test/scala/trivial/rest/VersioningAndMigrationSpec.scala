@@ -9,6 +9,7 @@ import org.json4s.native.Serialization
 import org.scalatest.{MustMatchers, OneInstancePerTest}
 import org.scalatest.MustMatchers._
 import trivial.rest.TestDirectories._
+import trivial.rest.controller.finatra.TestFinatraServer
 import trivial.rest.persistence.JsonOnFileSystem
 import trivial.rest.serialisation.Json4sSerialiser
 import trivial.rest.validation.RuleBasedRestValidator

@@ -12,7 +12,6 @@ abstract class FinatraController extends com.twitter.finatra.http.Controller wit
   /** Make the response available when wiring URL matchers to handlers. */
   override def response: ResponseBuilder = super.response
 
-  /** Registers a METHOD NOT SUPPORTED handler for any HttpMethod that is not supported by each resource. */
   override def unsupport(path: String, httpMethod: HttpMethod, errorMsg: String) = {
     def methodNotSupported = { request: Request => response.status(405).plain(errorMsg).toFuture }
 

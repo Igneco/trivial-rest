@@ -4,7 +4,7 @@ import trivial.rest.{Failure, HttpMethod}
 
 trait TrivialController {
 
-  // Intercept calls to path, and return a 405 result with the descriptive plain-text message provided
+  /** Register a METHOD NOT SUPPORTED handler for any HttpMethod that is not supported by each resource. */
   def unsupport(path: String, httpMethod: HttpMethod, errorMsg: String)
 
   def success(content: String): TrivialResponse
