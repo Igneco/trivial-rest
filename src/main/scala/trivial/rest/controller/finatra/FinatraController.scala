@@ -30,7 +30,6 @@ abstract class FinatraController extends com.twitter.finatra.http.Controller wit
 
   override def failure(failure: Failure) = FinatraResponse(response.status(failure.statusCode).plain(failure.describe).toFuture)
 
-
   // TODO - CAS - 25/09/15 - Find out why Finatra doesn't support refactoring of the function block to a common function
   override def get(path: String)(f: (TrivialRequest) => TrivialResponse): Unit = super[Controller].get(path){ request: Request =>
     f(FinatraRequest(request)).asInstanceOf[FinatraResponse].underlying
@@ -45,7 +44,7 @@ abstract class FinatraController extends com.twitter.finatra.http.Controller wit
     f(FinatraRequest(request)).asInstanceOf[FinatraResponse].underlying
   }
 
-  private def toFinatra(f: (TrivialRequest) => TrivialResponse) = { request: Request =>
+  private def toFinatra(f: (TrivialRequest) => TrivialResponse): (Request) => Future[Response] = { request: Request =>
     f(FinatraRequest(request)).asInstanceOf[FinatraResponse].underlying
   }
 }
