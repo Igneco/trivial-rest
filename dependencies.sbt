@@ -2,6 +2,8 @@ resolvers += Resolver.sonatypeRepo("releases")
 
 resolvers += "twitter-repo" at "http://maven.twttr.com"
 
+resolvers += "Tim Tennant's repo" at "http://dl.bintray.com/timt/repo/"
+
 updateOptions := updateOptions.value.withCachedResolution(cachedResoluton = true)
 
 val finatraVersion = "2.0.1"
@@ -12,6 +14,10 @@ val productionDependencies = Seq(
   ,
   "org.json4s" %% "json4s-ext" % "3.2.11",
 
+  "io.shaka" %% "naive-http" % "73",
+
+  // TODO - CAS - 28/09/15 - Put each set of framework/library dependencies into a separate sbt file
+  // TODO - CAS - 28/09/15 - Make these provided() dependencies, so that they don't pollute transitively
   // TODO - CAS - 08/09/15 - Holy shit: this is an insane dependency tree. Thanks Finatra.
   "com.twitter.finatra" %% "finatra-http" % finatraVersion withSources(),
   "com.twitter.finatra" %% "finatra-http" % finatraVersion % "test" withSources(),

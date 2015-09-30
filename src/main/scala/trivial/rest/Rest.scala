@@ -25,7 +25,7 @@ import scala.reflect.ClassTag
  *   Multiple versions of a case class supported at the same time
  */
 class Rest(uriRoot: String,
-           val controller2: TrivialController,
+           val controller: TrivialController,
            val serialiser: Serialiser,
            persister: Persister,
            validator: RestValidator) {
@@ -33,8 +33,6 @@ class Rest(uriRoot: String,
   private val resources = mutable.ListBuffer[String]()
   private val forwardMigrations = mutable.Map.empty[Class[_], _ => _]
   private val utf8Json = s"${MediaType.Json}; charset=UTF-8"
-
-//  import controller._
 
 //  notFound { request: Request =>
 //    // TODO - CAS - 24/06/15 - Match this to a resource path (res, res/:id or res?a=b)
@@ -65,7 +63,7 @@ class Rest(uriRoot: String,
         s"by /$resourceName are: ${supportedMethods.mkString(", ")}"
 
     unsupportedMethods.foreach { method =>
-      controller2.unsupport(pathTo(resourceName), method, unsupportedError(method))
+      controller.unsupport(pathTo(resourceName), method, unsupportedError(method))
     }
 
     this
@@ -98,7 +96,7 @@ class Rest(uriRoot: String,
   }
 
   private def backwardsCompatibleAlias[T <: Resource[T] : ClassTag : Manifest](alias: String, backwardsView: (T) => AnyRef): Unit = {
-    controller2.get(pathTo(alias)) { request: TrivialRequest =>
+    controller.get(pathTo(alias)) { request: TrivialRequest =>
       val result = for {
         itemsRead <- persister.read[T](Resource.name[T]).right
         oldFormatItems <- Right(itemsRead map backwardsView).right
@@ -108,7 +106,7 @@ class Rest(uriRoot: String,
   }
 
   def addGet[T <: Resource[T] : ClassTag : Manifest](resourceName: String): Unit = {
-    controller2.get(s"${pathTo(resourceName)}/:id") { request: TrivialRequest =>
+    controller.get(s"${pathTo(resourceName)}/:id") { request: TrivialRequest =>
       val msg = s"Not found: $resourceName with ID ${request.urlParam("id")}"
       val result = for {
         itemsRead <- persister.read[T](resourceName, request.urlParam("id")).right
@@ -123,7 +121,7 @@ class Rest(uriRoot: String,
     option.fold[Either[Failure, X]](Left(Failure(404, notFoundMsg)))(t => Right(t))
 
   def addDelete[T <: Resource[T] : Manifest](resourceName: String): Unit = {
-    controller2.delete(s"${pathTo(resourceName)}/:id") { request: TrivialRequest =>
+    controller.delete(s"${pathTo(resourceName)}/:id") { request: TrivialRequest =>
       val result = for {
         deletedCount <- persister.delete[T](resourceName, request.urlParam("id")).right
       } yield s"""{"deletedCount":"$deletedCount"}"""
@@ -134,7 +132,7 @@ class Rest(uriRoot: String,
   }
 
   def addGetAll[T <: Resource[T] : Manifest](resourceName: String): Unit = {
-    controller2.get(pathTo(resourceName)) { req: TrivialRequest =>
+    controller.get(pathTo(resourceName)) { req: TrivialRequest =>
       val result = for {
         allItems <- persister.read[T](resourceName, req.queryParams).right
       } yield serialiser.serialise(allItems)
@@ -145,7 +143,7 @@ class Rest(uriRoot: String,
 
   def addPost[T <: Resource[T] with AnyRef : Manifest](resourceName: String): Unit = {
     // TODO - CAS - 22/06/15 - Don't allow POST for Hardcoded Resouces
-    controller2.post(pathTo(resourceName)) { request: TrivialRequest =>
+    controller.post(pathTo(resourceName)) { request: TrivialRequest =>
       val result = for {
         resources <- serialiser.deserialise(request.contentString).right
         addedCount <- createResources(resources).right
@@ -157,7 +155,7 @@ class Rest(uriRoot: String,
   }
 
   def addPut[T <: Resource[T] : Manifest](resourceName: String): Unit = {
-    controller2.put(s"${pathTo(resourceName)}/:id") { request: TrivialRequest =>
+    controller.put(s"${pathTo(resourceName)}/:id") { request: TrivialRequest =>
       val result = for {
         resources <- serialiser.deserialise(request.contentString).right
         updatedCount <- updateResources(resources).right
@@ -194,18 +192,18 @@ class Rest(uriRoot: String,
 
   private def respond[T <: Resource[T] with AnyRef : Manifest](result: Either[Failure, String], direction: String = ""): TrivialResponse =
     result match {
-      case Right(content) => controller2.success(content)
-      case Left(failure) => controller2.failure(failure)
+      case Right(content) => controller.success(content)
+      case Left(failure) => controller.failure(failure)
     }
 
   // TODO - CAS - 25/06/15 - Be more specific, e.g. /:unsuppported?abc --> GET is not supported for :unsupported, which only supports: POST, PUT
-  controller2.get(s"${uriRoot.stripSuffix("/")}/:unsupportedResourceName") { request: TrivialRequest =>
-    controller2.failure(Failure(404, s"Resource type not supported: ${request.urlParam("unsupportedResourceName")}"))
+  controller.get(s"${uriRoot.stripSuffix("/")}/:unsupportedResourceName") { request: TrivialRequest =>
+    controller.failure(Failure(404, s"Resource type not supported: ${request.urlParam("unsupportedResourceName")}"))
   }
 
-  controller2.get(uriRoot) { request: TrivialRequest =>
+  controller.get(uriRoot) { request: TrivialRequest =>
     // TODO - CAS - 07/05/15 - the /[API ROOT]/ URI should be a resource: an array of available resource links and methods; ResourceDescriptor(relativeUri: String, httpMethods: HttpMethod*)
-    controller2.success(serialiser.serialise(resources.sorted[String]))
+    controller.success(serialiser.serialise(resources.sorted[String]))
   }
 
   // TODO - CAS - 23/09/15 - These are no longer supported by Finatra

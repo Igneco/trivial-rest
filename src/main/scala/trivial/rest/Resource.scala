@@ -10,8 +10,6 @@ trait Resource[T <: Resource[T]] {
   // Self-recursive types are not loved by all: http://logji.blogspot.se/2012/11/f-bounded-type-polymorphism-give-up-now.html
   // However, an overridden type-alias would have introduced yet more boilerplate.
   def withId(newId: Option[String]): T
-
-  //  def createDate: String
 }
 
 object Resource {
