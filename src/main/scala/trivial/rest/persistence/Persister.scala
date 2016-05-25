@@ -12,7 +12,10 @@ trait Persister {
 
   def update[T <: Resource[T] : Manifest](resourceName: String, content: Seq[T]): Either[Failure, Int]
 
-  def delete[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Int]
+  def delete[T <: Resource[T] : Manifest](resourceName: String, predicate: T => Boolean): Either[Failure, Int]
+
+  def delete[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Int] =
+    delete[T](resourceName, (r: T) => r.id.contains(id))
 
   def nextSequenceId: String
   def formatSequenceId(id: Int): String

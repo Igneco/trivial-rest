@@ -15,11 +15,11 @@ import scala.reflect.io.{Directory, File}
 
 class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persister with Memo {
 
-  override def delete[T <: Resource[T] : Manifest](resourceName: String, id: String): Either[Failure, Int] =
+  def delete[T <: Resource[T] : Manifest](resourceName: String, predicate: T => Boolean): Either[Failure, Int] =
     for {
       preExistingResources <- read[T](resourceName).right
     } yield {
-      val withoutDeletedResource = preExistingResources.filterNot(_.id == Some(id))
+      val withoutDeletedResource = preExistingResources.filterNot(predicate)
       saveOnly(resourceName, withoutDeletedResource)
       preExistingResources.size - withoutDeletedResource.size
     }
@@ -27,7 +27,7 @@ class JsonOnFileSystem(docRoot: Directory, serialiser: Serialiser) extends Persi
   // TODO - CAS - 03/07/15 - Look for a better way to do this, e.g. loadAll, modify the relevant T, then save all. At least that is atomic.
   override def update[T <: Resource[T] : Manifest](resourceName: String, content: Seq[T]): Either[Failure, Int] = {
     // TODO - CAS - 03/07/15 - Yes, massive hole here: if delete succeeds but create fails, we have lost the data
-    content.map(t => delete(resourceName, t.id.get))
+    content.map(t => delete[T](resourceName, (r: T) => r.id == t.id))
     // TODO - CAS - 03/07/15 - We should not try to re-create if the delete failed.
     create(resourceName, content)
   }
